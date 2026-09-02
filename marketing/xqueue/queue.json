@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "date": "2026-09-04",
+      "text": "立地と曜日とイベントを入れると、来客数と客層ペルソナが出てくるツールを作りました。\n統計の出典は16件（レジャー白書2026速報・警察庁・日遊協系）で全部見られます。\n無料・登録不要です。",
+      "video": "marketing/videos/raiten.mp4",
+      "reply": "▶ 来店シミュレーター\nhttps://ryoseiimai.github.io/pachinko-store-tools/raiten.html\n一覧 https://ryoseiimai.github.io/pachinko-store-tools/",
+      "status": "pending"
+    },
+    {
+      "id": 2,
+      "date": "2026-09-05",
+      "text": "台数と稼働率と粗利率を動かすと、売上・利益・損益分岐点が動くツールです。\n感度分析とモンテカルロも入れました。数字がどう連動するか触ると分かります。\n無料・登録不要です。",
+      "video": "marketing/videos/keiei.mp4",
+      "reply": "▶ 経営シミュレーター\nhttps://ryoseiimai.github.io/pachinko-store-tools/keiei.html\n一覧 https://ryoseiimai.github.io/pachinko-store-tools/",
+      "status": "pending"
+    },
+    {
+      "id": 3,
+      "date": "2026-09-06",
+      "text": "台配置を決めると1日の営業をシミュレーションして、台ごとのアウト・稼働・売上をヒートマップで見られます。\nそのまま3Dで店内を一人称で歩けて、装飾の見え方も事前確認できます。\n人気機種の島を入口に寄せると、同条件で店全体のアウトが約7%変わりました。",
+      "video": "marketing/videos/hall3d.mp4",
+      "reply": "▶ 1日営業シミュレーター（3D）\nhttps://ryoseiimai.github.io/pachinko-store-tools/hall3d.html\n一覧 https://ryoseiimai.github.io/pachinko-store-tools/",
+      "status": "pending"
+    }
+  ]
+}

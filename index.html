@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AIホール 店舗ツール集</title>
+<meta name="description" content="パチンコ店の仕事をAIで真似るシリーズ・店舗側編。無料・登録不要で使える来店予測/経営試算/1日営業3Dシミュレーターと業界SNS「パチつな」。架空店のデモ、公開統計に基づく試算です。">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://ryoseiimai.github.io/pachinko-store-tools/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="AIホール 店舗ツール集">
+<meta property="og:description" content="パチンコ店の仕事をAIで真似るシリーズ・店舗側編。無料・登録不要の来店予測/経営試算/1日営業3Dシミュレーター。">
+<meta property="og:url" content="https://ryoseiimai.github.io/pachinko-store-tools/">
+<meta property="og:image" content="https://ryoseiimai.github.io/pachinko-store-tools/og/og-index.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AIホール 店舗ツール集">
+<meta name="twitter:description" content="パチンコ店の仕事をAIで真似るシリーズ・店舗側編。無料・登録不要のデモツール4つ。">
+<meta name="twitter:image" content="https://ryoseiimai.github.io/pachinko-store-tools/og/og-index.png">
 <style>
 :root{--bg:#0c0c10;--panel:#17171d;--line:#2a2a33;--text:#f2f2f2;--accent:#ff2d55;--accent2:#ffd60a}
 *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans",sans-serif}
@@ -10,13 +22,26 @@ a.card{display:block;background:var(--panel);border:1px solid var(--line);border
 a.card:hover{border-color:var(--accent)}.card .t{font-size:17px;font-weight:700;color:var(--accent2)}.card .d{font-size:13px;color:#c0c0c8;margin-top:6px;line-height:1.6}
 .note{font-size:11px;color:#77777f;margin-top:24px;line-height:1.6}
 .old{font-size:12px;color:#9a9aa5;margin-top:16px}.old a{color:var(--accent2)}
+.points{display:flex;flex-wrap:wrap;gap:6px 10px;margin-bottom:18px;font-size:11px;color:#c0c0c8}
+.share{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.share a,.share button{font-size:12px;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;text-decoration:none;font-family:inherit;cursor:pointer}
+.share a:hover,.share button:hover{border-color:var(--accent)}
 </style></head><body><div class="wrap">
 <h1>AIホール 店舗ツール集</h1>
 <div class="sub">パチンコ店の仕事をAIで真似るシリーズ・店舗側編</div>
+<div class="points">
+  <span>✅ 無料</span><span>✅ 登録不要</span><span>✅ 架空店のデモ</span><span>✅ 出典つき統計</span>
+</div>
 <a class="card" href="raiten.html"><div class="t">① 来店シミュレーター</div><div class="d">立地・商圏・曜日・イベントから今日の来客数と客層ペルソナを予測。公開統計ベース。</div></a>
 <a class="card" href="keiei.html"><div class="t">② 経営シミュレーター</div><div class="d">台数×稼働率×粗利率で売上・利益・損益分岐を試算。シナリオ比較と感度分析つき。</div></a>
 <a class="card" href="hall3d.html"><div class="t">④ 1日営業シミュレーター（3D）</div><div class="d">台の配置を決めて1日を走らせ、台ごとのアウト・稼働・売上をヒートマップと3D店内で確認。ストリートビュー風に歩けて、装飾の事前確認と動画書き出しも。</div></a>
 <a class="card" href="https://pachitsuna.kaeru3160.workers.dev/"><div class="t">③ パチつな（業界SNS）</div><div class="d">店舗・メーカー・ライター・従業員が繋がる業界専用の掲示板SNS。求人・中古台・新台情報。</div></a>
 <div class="old">遊技側編: <a href="https://ryoseiimai.github.io/ai-pachinko-sim/">台シミュレーター</a> / <a href="https://ryoseiimai.github.io/ai-pachinko-sim/hall.html">AI客ホール</a></div>
 <div class="note">いずれも架空店「AIホール」の試作ツールです。出玉・設定・還元率に関する情報は一切扱いません。統計に基づく試算であり実際の来店・収益を保証するものではありません。</div>
+<div class="share">
+  <a href="https://twitter.com/intent/tweet?text=%E3%83%91%E3%83%81%E3%83%B3%E3%82%B3%E5%BA%97%E3%81%AE%E4%BB%95%E4%BA%8B%E3%82%92AI%E3%81%A7%E7%9C%9F%E4%BC%BC%E3%82%8B%E3%80%81AI%E3%83%9B%E3%83%BC%E3%83%AB%E5%BA%97%E8%88%97%E3%83%84%E3%83%BC%E3%83%AB%E9%9B%86&url=https%3A%2F%2Fryoseiimai.github.io%2Fpachinko-store-tools%2F" target="_blank" rel="noopener">Xでシェア</a>
+  <button type="button" onclick="navigator.clipboard.writeText('https://ryoseiimai.github.io/pachinko-store-tools/');this.textContent='コピーしました'">URLをコピー</button>
+  <a href="https://pachitsuna.kaeru3160.workers.dev/" target="_blank" rel="noopener">フィードバックはパチつなへ</a>
+  <a href="https://github.com/Ryoseiimai/pachinko-store-tools" target="_blank" rel="noopener">GitHub</a>
+</div>
 </div></body></html>

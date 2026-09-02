@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AIホール 1日営業シミュレーター（3D）</title>
+<meta name="description" content="台の配置を決めて1日を走らせ、台ごとのアウト・稼働・売上をヒートマップと3D店内で確認。ストリートビュー風に歩けて動画書き出しも。無料・登録不要の架空店デモ。">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://ryoseiimai.github.io/pachinko-store-tools/hall3d.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="AIホール 1日営業シミュレーター（3D）">
+<meta property="og:description" content="配置を決めて1日を走らせ、台ごとのアウト・稼働・売上をヒートマップと3D店内で確認。歩ける・動画書き出しも可能。">
+<meta property="og:url" content="https://ryoseiimai.github.io/pachinko-store-tools/hall3d.html">
+<meta property="og:image" content="https://ryoseiimai.github.io/pachinko-store-tools/og/og-hall3d.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AIホール 1日営業シミュレーター（3D）">
+<meta name="twitter:description" content="台の配置を決めて1日を走らせ、3Dで店内を歩けるシミュレーター。">
+<meta name="twitter:image" content="https://ryoseiimai.github.io/pachinko-store-tools/og/og-hall3d.png">
 <style>
   :root{ --bg:#0c0c10; --panel:#17171d; --line:#2a2a33; --text:#f2f2f2; --accent:#ff2d55; --accent2:#ffd60a; --ok:#3ddc84; --sub:#9a9aa5; }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
@@ -60,6 +72,15 @@
   .footer{font-size:11px;color:#55555f;text-align:center;padding-top:10px;}
   #perfNote{font-size:11px;color:var(--sub);margin-top:6px;}
   #recordStatus{font-size:11px;color:var(--sub);margin-top:4px;}
+  .usage{border:1px solid var(--line);border-radius:8px;margin-bottom:12px;overflow:hidden}
+  .usage summary{padding:8px 10px;font-size:12px;color:var(--accent2);cursor:pointer;list-style:none}
+  .usage summary::-webkit-details-marker{display:none}
+  .usage summary::before{content:"▸ ";}
+  .usage[open] summary::before{content:"▾ ";}
+  .usage ol{margin:0;padding:8px 10px 10px 26px;font-size:12px;color:#c0c0c8;line-height:1.7}
+  .share{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .share a,.share button{font-size:12px;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;text-decoration:none;font-family:inherit;cursor:pointer}
+  .share a:hover,.share button:hover{border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -67,6 +88,14 @@
   <h1>AIホール 1日営業シミュレーター（3D）</h1>
   <div class="sub">レイアウトを編集して1日(10:00〜23:00)の来店・稼働をシミュレーションし、3Dで再生する架空店ツールです。</div>
   <div class="disclaimer">このツールは架空のホールを対象にした試算・可視化であり、実在店舗の運営状況や実際の来店・稼働を示すものではありません。</div>
+  <details class="usage">
+    <summary>使い方 3ステップ</summary>
+    <ol>
+      <li>テンプレを選ぶ（または台をクリックで機種を配置）</li>
+      <li>「1日を走らせる」でアウト・稼働・売上をヒートマップ表示</li>
+      <li>3Dで一人称に切り替えて店内を歩く・動画に書き出す</li>
+    </ol>
+  </details>
 
   <div class="layout">
     <div class="col-editor">
@@ -251,6 +280,12 @@
     </div>
   </div>
 
+  <div class="share">
+    <a href="https://twitter.com/intent/tweet?text=1%E6%97%A5%E5%96%B6%E6%A5%AD%E3%82%B7%E3%83%9F%E3%83%A5%E3%83%AC%E3%83%BC%E3%82%BF%E3%83%BC%EF%BC%883D%EF%BC%89%E3%81%A7%E5%BA%97%E5%86%85%E3%82%92%E6%AD%A9%E3%81%84%E3%81%9F%20%40AI%E3%83%9B%E3%83%BC%E3%83%AB&url=https%3A%2F%2Fryoseiimai.github.io%2Fpachinko-store-tools%2Fhall3d.html" target="_blank" rel="noopener">Xでシェア</a>
+    <button type="button" onclick="navigator.clipboard.writeText('https://ryoseiimai.github.io/pachinko-store-tools/hall3d.html');this.textContent='コピーしました'">URLをコピー</button>
+    <a href="https://pachitsuna.kaeru3160.workers.dev/" target="_blank" rel="noopener">フィードバックはパチつなへ</a>
+    <a href="https://github.com/Ryoseiimai/pachinko-store-tools" target="_blank" rel="noopener">GitHub</a>
+  </div>
   <div class="footer">架空のホールを対象にした試算・可視化ツールです。実在の店舗・機種とは一切関係ありません。</div>
 </div>
 <div id="tooltip"></div>

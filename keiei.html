@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>AIホール 経営シミュレーター</title>
+<meta name="description" content="台数×稼働率×粗利率で売上・利益・損益分岐を試算。シナリオ比較と感度分析つき、無料・登録不要の架空店デモツール。">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://ryoseiimai.github.io/pachinko-store-tools/keiei.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="AIホール 経営シミュレーター">
+<meta property="og:description" content="台数×稼働率×粗利率で売上・利益・損益分岐を試算。シナリオ比較と感度分析つき。">
+<meta property="og:url" content="https://ryoseiimai.github.io/pachinko-store-tools/keiei.html">
+<meta property="og:image" content="https://ryoseiimai.github.io/pachinko-store-tools/og/og-keiei.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AIホール 経営シミュレーター">
+<meta name="twitter:description" content="台数×稼働率×粗利率で売上・利益・損益分岐を試算。">
+<meta name="twitter:image" content="https://ryoseiimai.github.io/pachinko-store-tools/og/og-keiei.png">
 <style>
   :root{
     --bg:#0c0c10; --panel:#17171d; --line:#2a2a33; --text:#f2f2f2;
@@ -66,12 +78,29 @@
     color:#111;padding:8px 16px;border-radius:20px;font-size:12.5px;font-weight:700;
     opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;}
   .toast.show{opacity:1;}
+  .usage{border:1px solid var(--line);border-radius:8px;margin:0 12px 12px;overflow:hidden}
+  .usage summary{padding:8px 10px;font-size:12px;color:var(--accent2);cursor:pointer;list-style:none}
+  .usage summary::-webkit-details-marker{display:none}
+  .usage summary::before{content:"▸ ";}
+  .usage[open] summary::before{content:"▾ ";}
+  .usage ol{margin:0;padding:8px 10px 10px 26px;font-size:12px;color:#c0c0c8;line-height:1.7}
+  .share{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .share a,.share button{font-size:12px;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;text-decoration:none;font-family:inherit;cursor:pointer}
+  .share a:hover,.share button:hover{border-color:var(--accent)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>AIホール 経営シミュレーター</h1>
   <p class="sub">店舗経営の試算専用ツールです。出玉・設定・還元率に関する数値は一切扱いません。</p>
+  <details class="usage">
+    <summary>使い方 3ステップ</summary>
+    <ol>
+      <li>台数・料金構成と稼働率・粗利率を入力する</li>
+      <li>売上・利益・損益分岐点を自動計算で確認する</li>
+      <li>シナリオを比較し、共有URLで結果を保存・共有する</li>
+    </ol>
+  </details>
 
   <div class="grid2">
     <!-- 左カラム: 入力 -->
@@ -243,6 +272,12 @@
   <div class="foot-note">
     <b>免責注記:</b> 本ツールは経営数値の試算用です。出玉・設定・還元率に関する情報は一切扱いません。<br>
     入力値はブラウザのlocalStorageに自動保存され、「共有URLを作成」でURLにも埋め込めます。
+  </div>
+  <div class="share">
+    <a href="https://twitter.com/intent/tweet?text=%E7%B5%8C%E5%96%B6%E3%82%B7%E3%83%9F%E3%83%A5%E3%83%AC%E3%83%BC%E3%82%BF%E3%83%BC%E3%81%A7%E5%A3%B2%E4%B8%8A%E3%83%BB%E5%88%A9%E7%9B%8A%E3%82%92%E8%A9%A6%E7%AE%97%20%40AI%E3%83%9B%E3%83%BC%E3%83%AB&url=https%3A%2F%2Fryoseiimai.github.io%2Fpachinko-store-tools%2Fkeiei.html" target="_blank" rel="noopener">Xでシェア</a>
+    <button type="button" onclick="navigator.clipboard.writeText('https://ryoseiimai.github.io/pachinko-store-tools/keiei.html');this.textContent='コピーしました'">URLをコピー</button>
+    <a href="https://pachitsuna.kaeru3160.workers.dev/" target="_blank" rel="noopener">フィードバックはパチつなへ</a>
+    <a href="https://github.com/Ryoseiimai/pachinko-store-tools" target="_blank" rel="noopener">GitHub</a>
   </div>
 </div>
 

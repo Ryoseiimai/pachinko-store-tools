@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ryoseiimai.github.io/pachinko-store-tools/sitemap.xml

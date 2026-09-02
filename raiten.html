@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AIホール 来店シミュレーター</title>
+<meta name="description" content="立地・商圏・曜日・イベントから今日の来客数と客層ペルソナを公開統計ベースで試算する、無料・登録不要の架空店デモツール。">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://ryoseiimai.github.io/pachinko-store-tools/raiten.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="AIホール 来店シミュレーター">
+<meta property="og:description" content="立地・商圏・曜日・イベントから今日の来客数と客層ペルソナを試算。公開統計ベース、無料・登録不要。">
+<meta property="og:url" content="https://ryoseiimai.github.io/pachinko-store-tools/raiten.html">
+<meta property="og:image" content="https://ryoseiimai.github.io/pachinko-store-tools/og/og-raiten.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AIホール 来店シミュレーター">
+<meta name="twitter:description" content="立地・商圏・曜日・イベントから今日の来客数と客層ペルソナを試算。">
+<meta name="twitter:image" content="https://ryoseiimai.github.io/pachinko-store-tools/og/og-raiten.png">
 <style>
   :root{ --bg:#0c0c10; --panel:#17171d; --line:#2a2a33; --text:#f2f2f2; --accent:#ff2d55; --accent2:#ffd60a; --ok:#3ddc84; --sub:#9a9aa5; }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
@@ -44,6 +56,15 @@
   .footer{font-size:11px;color:#55555f;text-align:center;padding-top:10px;}
   .peakbox{font-size:12px;color:#c9c9d4;margin-top:6px;}
   .peakbox b{color:var(--accent2);}
+  .usage{border:1px solid var(--line);border-radius:8px;margin-bottom:12px;overflow:hidden}
+  .usage summary{padding:8px 10px;font-size:12px;color:var(--accent2);cursor:pointer;list-style:none}
+  .usage summary::-webkit-details-marker{display:none}
+  .usage summary::before{content:"▸ ";}
+  .usage[open] summary::before{content:"▾ ";}
+  .usage ol{margin:0;padding:8px 10px 10px 26px;font-size:12px;color:#c0c0c8;line-height:1.7}
+  .share{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+  .share a,.share button{font-size:12px;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;text-decoration:none;font-family:inherit;cursor:pointer}
+  .share a:hover,.share button:hover{border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -51,6 +72,14 @@
   <h1>AIホール 来店シミュレーター</h1>
   <div class="sub">立地・商圏・曜日・時間帯から、その日の来客数と客層をAIが試算します（架空店ツール）</div>
   <div class="disclaimer">このシミュレーターは公的統計に基づく試算であり、実際の来店を保証するものではありません。</div>
+  <details class="usage">
+    <summary>使い方 3ステップ</summary>
+    <ol>
+      <li>立地・商圏・曜日・イベントなど条件を選ぶ</li>
+      <li>「試算する」で今日の来客数と客層を出す</li>
+      <li>ペルソナやグラフを見て来店シナリオを比較する</li>
+    </ol>
+  </details>
 
   <div class="panel">
     <h2>入力条件</h2>
@@ -156,6 +185,12 @@
     <div class="sourcelist" id="sourceList">読み込み中…</div>
   </div>
 
+  <div class="share">
+    <a href="https://twitter.com/intent/tweet?text=%E6%9D%A5%E5%BA%97%E3%82%B7%E3%83%9F%E3%83%A5%E3%83%AC%E3%83%BC%E3%82%BF%E3%83%BC%E3%81%A7%E4%BB%8A%E6%97%A5%E3%81%AE%E6%9D%A5%E5%AE%A2%E3%82%92%E8%A9%A6%E7%AE%97%20%40AI%E3%83%9B%E3%83%BC%E3%83%AB&url=https%3A%2F%2Fryoseiimai.github.io%2Fpachinko-store-tools%2Fraiten.html" target="_blank" rel="noopener">Xでシェア</a>
+    <button type="button" onclick="navigator.clipboard.writeText('https://ryoseiimai.github.io/pachinko-store-tools/raiten.html');this.textContent='コピーしました'">URLをコピー</button>
+    <a href="https://pachitsuna.kaeru3160.workers.dev/" target="_blank" rel="noopener">フィードバックはパチつなへ</a>
+    <a href="https://github.com/Ryoseiimai/pachinko-store-tools" target="_blank" rel="noopener">GitHub</a>
+  </div>
   <div class="footer">AIホール 来店シミュレーター / 統計に基づく試算ツールです。実在店舗の集客成績を示すものではありません。</div>
 </div>
 
