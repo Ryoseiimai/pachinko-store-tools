@@ -7,7 +7,10 @@ const $ = (id) => document.getElementById(id);
 
 const canvas = $('editorCanvas');
 const editor = createEditor(canvas, {
-  onChange: (layout) => { lastResult = null; saveToLocalStorage(); },
+  // レイアウト構造(島の追加/削除/移動/回転・機種割当)が変わった時だけ3Dを再構築する。
+  // 「1日を走らせる」の度に毎回setLayoutすると320台分のキャビネット・スプライト・
+  // CanvasTextureを全部作り直すことになり非常に重いため、ここでのみ呼ぶ。
+  onChange: (layout) => { lastResult = null; saveToLocalStorage(); if (view3d) view3d.setLayout(layout); },
   onHover: (info, clientX, clientY) => showTooltip(info, clientX, clientY),
 });
 
@@ -99,7 +102,8 @@ async function runSimulation(){
   editor.setHeatmap(res.perSlot);
   $('perfNote').textContent = `計算時間: ${(t1 - t0).toFixed(0)}ms（${layout.islands.reduce((a, i) => a + i.slots.filter(s => s.machineId).length, 0)}台 / ${res.minutes}分）`;
   if (view3d) {
-    view3d.setLayout(layout);
+    // レイアウト自体は変わっていないのでsetLayoutは呼ばない(3D再構築はeditorのonChange側で行う)。
+    // ここではsetDecor(装飾の反映)とsetResult(集計・稼働色の反映)だけの軽量パスにする。
     view3d.setDecor(layout.decor);
     view3d.setResult(res, { openHour: dayParams.openHour });
   }

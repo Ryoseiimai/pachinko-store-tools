@@ -327,7 +327,10 @@ export function createView3D(container, opts = {}) {
     playerLight.intensity = 0.9 * lp.ambientMul;
     scene.background.setHex(decor.lighting === 'dim' ? 0x14141a : 0x1c1c26);
 
-    // ceiling lights（視覚上の発光パネル＋実際に床面を照らす点光源）
+    // 天井の発光パネル(視覚のみ・見た目は変えない)は元の密度のまま描画するが、
+    // 実際に光を放つPointLightは大きい店舗だと100個を超えGPU負荷が致命的になる
+    // (性能課題の主因)ため、床を粗いセルに分けてセルにつき1灯に間引く。
+    // 見た目の明るさはambient/hemi/playerLight側で底上げ済みなので体感差はごく僅か。
     clearGroup(ceilingLightsGroup);
     const ceilLightMat = new THREE.MeshStandardMaterial({ color: lp.color, emissive: lp.color, emissiveIntensity: lp.intensity });
     for (let x = 2; x < floorW; x += 4) {
@@ -336,7 +339,17 @@ export function createView3D(container, opts = {}) {
         const mesh = new THREE.Mesh(geo, ceilLightMat);
         mesh.position.set(x, wallH - 0.05, z);
         wallsGroup.add(mesh);
-        const point = new THREE.PointLight(lp.color, lp.intensity * 1.4, 7, 2);
+      }
+    }
+    const cellSize = 15; // m。この間隔で1灯だけ実際に光らせる
+    const cellsX = Math.max(1, Math.ceil(floorW / cellSize));
+    const cellsZ = Math.max(1, Math.ceil(floorD / cellSize));
+    const lightRange = Math.max(9, cellSize * 0.9);
+    for (let cx = 0; cx < cellsX; cx++) {
+      for (let cz = 0; cz < cellsZ; cz++) {
+        const x = THREE.MathUtils.clamp((cx + 0.5) * (floorW / cellsX), 1, floorW - 1);
+        const z = THREE.MathUtils.clamp((cz + 0.5) * (floorD / cellsZ), 1, floorD - 1);
+        const point = new THREE.PointLight(lp.color, lp.intensity * 1.6, lightRange, 2);
         point.position.set(x, wallH - 0.3, z);
         ceilingLightsGroup.add(point);
       }
