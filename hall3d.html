@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIホール 1日営業シミュレーター（3D）</title>
+<style>
+  :root{ --bg:#0c0c10; --panel:#17171d; --line:#2a2a33; --text:#f2f2f2; --accent:#ff2d55; --accent2:#ffd60a; --ok:#3ddc84; --sub:#9a9aa5; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans",sans-serif;font-size:15px;overflow-x:hidden;}
+  .wrap{max-width:1400px;margin:0 auto;padding:10px 12px 40px;}
+  h1{font-size:18px;margin:6px 0 2px;}
+  .sub{font-size:12px;color:var(--sub);margin-bottom:10px;line-height:1.5;}
+  .disclaimer{background:#221a10;border:1px solid #4a3a10;border-radius:8px;padding:8px 10px;font-size:12px;color:#ffd6a0;margin-bottom:12px;line-height:1.5;}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px;}
+  .panel h2{font-size:14px;margin:0 0 10px;color:#e6e6ea;}
+  .row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
+  .row label{font-size:12px;color:#c9c9d4;}
+  select,input[type=text],input[type=number]{font-size:14px;padding:8px;border-radius:6px;border:1px solid var(--line);background:#1f1f28;color:var(--text);width:100%;}
+  input[type=range]{accent-color:var(--accent);width:100%;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  button{font-size:13px;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:#1f1f28;color:var(--text);cursor:pointer;}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+  button.ghost{background:transparent;}
+  .btnrow{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+  .btnrow button{flex:1;min-width:80px;}
+  .stat{background:#1c1c24;border:1px solid var(--line);border-radius:8px;padding:8px 10px;}
+  .stat .label{font-size:11px;color:var(--sub);}
+  .stat .value{font-size:16px;font-weight:700;color:var(--accent2);}
+  .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
+
+  /* レイアウト: PCは左右分割、スマホは縦積み(エディタ→3D→KPI) */
+  .layout{display:flex;flex-direction:column;gap:12px;}
+  @media (min-width: 900px){
+    .layout{flex-direction:row;align-items:flex-start;}
+    .col-editor{flex:0 0 380px;}
+    .col-3d{flex:1 1 auto; min-width:0;}
+    .col-kpi{flex:0 0 300px;}
+  }
+
+  #editorCanvas{width:100%;background:#111116;border-radius:6px;border:1px solid var(--line);cursor:pointer;touch-action:none;}
+  #view3dContainer{position:relative;width:100%;height:420px;background:#08080b;border-radius:6px;border:1px solid var(--line);overflow:hidden;}
+  #view3dStatus{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:13px;text-align:center;padding:20px;}
+
+  #tooltip{position:fixed;display:none;background:#1c1c24;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:11px;line-height:1.6;color:#e6e6ea;pointer-events:none;z-index:100;}
+  #compareTable{width:100%;border-collapse:collapse;font-size:12px;}
+  #compareTable td, #compareTable th{border-bottom:1px solid var(--line);padding:5px 4px;text-align:right;}
+  #compareTable th:first-child, #compareTable td:first-child{text-align:left;}
+  .legend{display:flex;gap:10px;font-size:11px;color:var(--sub);margin-top:6px;flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:4px;}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;}
+  details{background:#1c1c24;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:12px;}
+  details summary{cursor:pointer;font-size:13px;color:#c9c9d4;}
+  details .body{font-size:12px;color:#b5b5c0;margin-top:8px;line-height:1.7;}
+  .sourcelist{font-size:11px;color:#7a7a86;line-height:1.8;word-break:break-all;}
+  .sourcelist a{color:#8ab4f8;}
+  .footer{font-size:11px;color:#55555f;text-align:center;padding-top:10px;}
+  #perfNote{font-size:11px;color:var(--sub);margin-top:6px;}
+  #recordStatus{font-size:11px;color:var(--sub);margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AIホール 1日営業シミュレーター（3D）</h1>
+  <div class="sub">レイアウトを編集して1日(10:00〜23:00)の来店・稼働をシミュレーションし、3Dで再生する架空店ツールです。</div>
+  <div class="disclaimer">このツールは架空のホールを対象にした試算・可視化であり、実在店舗の運営状況や実際の来店・稼働を示すものではありません。</div>
+
+  <div class="layout">
+    <div class="col-editor">
+      <div class="panel">
+        <h2>レイアウトテンプレ</h2>
+        <div class="btnrow">
+          <button class="templateBtn" data-template="small120">駅前小型120台</button>
+          <button class="templateBtn" data-template="mid320">郊外中型320台</button>
+          <button class="templateBtn" data-template="large500">大型500台</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>2Dレイアウトエディタ</h2>
+        <div class="btnrow">
+          <button id="btnAddIsland">島を追加</button>
+          <button id="btnRotateIsland">選択島を回転</button>
+          <button id="btnRemoveIsland">選択島を削除</button>
+        </div>
+        <canvas id="editorCanvas" width="600" height="300"></canvas>
+        <div class="legend">
+          <span><i style="background:#3d5ddc"></i>P機</span>
+          <span><i style="background:#dc7a3d"></i>S機</span>
+          <span><i style="background:#232329"></i>空き</span>
+        </div>
+        <div class="sub" style="margin-top:6px;">台をクリックで機種選択／Shift+クリックで島ごと一括／島の内側をドラッグで移動、入口・受付もドラッグ可</div>
+        <div class="btnrow" style="margin-top:8px;">
+          <button id="btnExport">JSON書き出し</button>
+          <button id="btnImport">JSON読み込み</button>
+          <input type="file" id="fileImport" accept="application/json" style="display:none;">
+        </div>
+      </div>
+      <div class="panel">
+        <h2>装飾</h2>
+        <div class="grid2">
+          <div class="row">
+            <label>床パターン</label>
+            <select id="inFloor">
+              <option value="tile">タイル</option>
+              <option value="carpet-red">カーペット(赤)</option>
+              <option value="carpet-blue">カーペット(青)</option>
+              <option value="wood">木目</option>
+            </select>
+          </div>
+          <div class="row">
+            <label>壁色</label>
+            <input type="color" id="inWallColor" value="#1a1a22">
+          </div>
+        </div>
+        <div class="row">
+          <label>照明</label>
+          <select id="inLighting">
+            <option value="bright">明るい</option>
+            <option value="warm">暖色</option>
+            <option value="dim">暗め</option>
+          </select>
+        </div>
+        <div class="row"><label>看板文字</label><input type="text" id="inSignText" value="AIホール"></div>
+        <div class="grid2">
+          <div class="row"><label>島端バナー文字（全島一括）</label><input type="text" id="inBannerText" value=""></div>
+          <div class="row"><label>バナー色</label><input type="color" id="inBannerColor" value="#ff2d55"></div>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="inCeilingPops" style="width:auto;"> 天吊りPOPを表示</label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>営業条件</h2>
+        <div class="grid2">
+          <div class="row"><label>商圏人口（人）</label><input type="text" inputmode="numeric" id="inPop" value="80000"></div>
+          <div class="row"><label>競合店数</label><input type="text" inputmode="numeric" id="inRivals" value="3"></div>
+        </div>
+        <div class="grid2">
+          <div class="row">
+            <label>曜日</label>
+            <select id="inDow">
+              <option value="0">日曜</option><option value="1">月曜</option><option value="2">火曜</option>
+              <option value="3">水曜</option><option value="4">木曜</option><option value="5">金曜</option>
+              <option value="6" selected>土曜</option>
+            </select>
+          </div>
+          <div class="row">
+            <label>イベント</label>
+            <select id="inEvent">
+              <option value="none">なし</option>
+              <option value="newMachine">新台入替日</option>
+              <option value="payday">給料日直後</option>
+              <option value="rain">雨天</option>
+              <option value="holiday">祝日</option>
+            </select>
+          </div>
+        </div>
+        <div class="row"><label>乱数シード</label><input type="text" inputmode="numeric" id="inSeed" value="42"></div>
+        <div class="row">
+          <label>基準稼働率: <span id="baseUtilLabel">35%</span></label>
+          <input type="range" id="inBaseUtil" min="5" max="80" value="35">
+          <div class="sub" style="margin-top:2px;">業界統計に店単位の稼働率の公開値がないため仮置き。自店の実績値に合わせて調整してください。</div>
+        </div>
+        <div class="row">
+          <label>貸玉率: <span id="salesRatioLabel">24%</span></label>
+          <input type="range" id="inSalesRatio" min="10" max="50" value="24">
+          <div class="sub" style="margin-top:2px;">アウトのうち新規貸玉の割合の仮置き（アウトには持ち玉の再投入を含むため、貸玉売上と同じにはなりません）。</div>
+        </div>
+        <div class="btnrow">
+          <button id="btnRun" class="primary">1日を走らせる</button>
+          <button id="btnCompare">A/B比較（同条件で再計算）</button>
+        </div>
+        <div id="perfNote"></div>
+      </div>
+    </div>
+
+    <div class="col-3d">
+      <div class="panel">
+        <h2>3Dビュー</h2>
+        <div id="view3dContainer">
+          <div id="view3dStatus">読み込み中…</div>
+        </div>
+        <div class="btnrow" style="margin-top:8px;">
+          <button id="btnModeOrbit">俯瞰</button>
+          <button id="btnModeFP">一人称</button>
+          <button id="btnPlay">再生</button>
+          <button id="btnPause">一時停止</button>
+          <select id="inSpeed" style="flex:0 0 90px;">
+            <option value="1">1倍速</option>
+            <option value="10" selected>10倍速</option>
+            <option value="60">60倍速</option>
+          </select>
+        </div>
+        <input type="range" id="inTimeline" min="0" max="1" step="0.001" value="0">
+        <div class="btnrow" style="margin-top:8px;">
+          <button id="btnRecord">動画にする（俯瞰→一人称の自動パン）</button>
+        </div>
+        <div id="recordStatus"></div>
+      </div>
+
+      <div class="panel">
+        <h2>A/B比較</h2>
+        <table id="compareTable"><tr><td class="sub">「1日を走らせる」→「A/B比較」で差分が表示されます</td></tr></table>
+      </div>
+    </div>
+
+    <div class="col-kpi">
+      <div class="panel">
+        <h2>本日のKPI</h2>
+        <div class="statgrid">
+          <div class="stat"><div class="label">来店客数</div><div class="value" id="kpiVisitors">-</div></div>
+          <div class="stat"><div class="label">最大在店</div><div class="value" id="kpiPeak">-</div></div>
+          <div class="stat"><div class="label">総OUT</div><div class="value" id="kpiOut">-</div></div>
+          <div class="stat"><div class="label">総売上</div><div class="value" id="kpiSales">-</div></div>
+          <div class="stat"><div class="label">粗利</div><div class="value" id="kpiProfit">-</div></div>
+          <div class="stat"><div class="label">平均滞在</div><div class="value" id="kpiStay">-</div></div>
+          <div class="stat"><div class="label">稼働率</div><div class="value" id="kpiUtil">-</div></div>
+        </div>
+      </div>
+
+      <details>
+        <summary>モデル説明・データ出典</summary>
+        <div class="body">
+          <b>来店客数モデル</b>: 期待来店客数 = 台数 × 基準稼働率 × 営業分 ÷ (平均滞在分 × 移動セッション補正) を土台に、
+          曜日係数・イベント係数・自店の商圏内台数シェア（raiten.htmlと同じ考え方）を「基準からの倍率(0.6〜1.5にクリップ)」として掛けます。
+          基準稼働率は業界統計に店単位の公開値がないため仮置き（既定35%）で、UIのスライダーで自店実績に合わせて調整できます。<br><br>
+          <b>店構えの見え方効果</b>: 人気機種(新台)が入口に近いほど、外からの視認性・入店動線の良さから来店自体がやや増えるという仮定をモデルに加えています
+          （「見え方スコア」= 機種の人気度×入口からの近さ の平均。標準的なテンプレ配置を基準倍率=1とし、0.85〜1.25倍の範囲で来店客数に影響します）。
+          レイアウトエディタで人気機種の島を入口付近／最奥に動かすと、この効果を通じて店全体のOUT・売上が変わります。<br><br>
+          <b>着席モデル</b>: 多項ロジット風のスコア（機種の集客力・入口からの近さ・角台・にぎわい・向かい合わせの圧迫感）で空き台を選びます。
+          最良の空き台のスコアが低いと一定確率で「見送り(着席せず退店)」となり、スコアが高いほど滞在時間も±20%伸縮します。<br><br>
+          <b>売上モデル</b>: 売上 = アウト玉数 × 貸玉単価(rate) × 貸玉率。アウトには持ち玉の再投入(打ち直し)が含まれ、貸玉として新たに売上計上されるのはその一部のみのため、
+          貸玉率(既定24%・仮置き)で按分しています。既定値は keiei.html の4円台の想定(25,000円/台/日)と概ね整合する水準に較正しています。
+          <div class="sourcelist" style="margin-top:8px;">
+            データ出典: レジャー白書2026速報版 参加率7.4%（自店シェア補正の考え方の元）
+            <a href="https://web-greenbelt.jp/post-115721/" target="_blank" rel="noopener">https://web-greenbelt.jp/post-115721/</a><br>
+            業界粗利率の目安15〜17%
+            <a href="https://gamblego.jp/market/734/" target="_blank" rel="noopener">https://gamblego.jp/market/734/</a><br>
+            基準稼働率・貸玉率・曜日係数・イベント係数・時間帯の二峰カーブ・見え方効果の各パラメータは、公開統計に店単位の値がないため仮置きです。
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div class="footer">架空のホールを対象にした試算・可視化ツールです。実在の店舗・機種とは一切関係ありません。</div>
+</div>
+<div id="tooltip"></div>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module" src="./hall3d/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>view3d 単体テスト</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #111; color: #eee; font-family: sans-serif; }
+  #app { display: flex; flex-direction: column; height: 100%; }
+  #view { flex: 1; position: relative; min-height: 0; }
+  #controls { padding: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: #222; }
+  button { padding: 6px 10px; }
+  #status { padding: 6px 8px; font-size: 13px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="controls">
+    <button id="btnOrbit">俯瞰(orbit)</button>
+    <button id="btnFP">一人称(fp)</button>
+    <button id="btnPlay">再生</button>
+    <button id="btnPause">一時停止</button>
+    <button id="btnRecord">動画にする</button>
+    <span id="status"></span>
+  </div>
+  <div id="view"></div>
+</div>
+<script type="module">
+import { createView3D } from './view3d.js';
+
+const W = 40, D = 30; // grid units (0.5m each) -> 20m x 15m
+function makeIsland(id, x, z, w, d, dir, machineIds) {
+  const slots = [];
+  let i = 0;
+  for (const mid of machineIds) {
+    slots.push({ i: i, machineId: mid, side: i % 2 === 0 ? 'A' : 'B' });
+    i++;
+  }
+  return { id, x, z, w, d, dir, slots };
+}
+
+const machines = [
+  { id: 'm01', name: 'CR AIホール 桜', kind: 'P', rate: 4, popularity: 0.9, stayMin: [20, 60], outPerMin: 110, salesPerMin: 440, genre: '海物語系' },
+  { id: 'm02', name: 'CR夜行バス伝説', kind: 'P', rate: 4, popularity: 0.5, stayMin: [15, 50], outPerMin: 100, salesPerMin: 400, genre: 'アニメ版権' },
+  { id: 's01', name: 'ジャグ風スター', kind: 'S', rate: 20, popularity: 0.6, stayMin: [20, 70], outPerMin: 50, salesPerMin: 500, genre: 'ジャグラー風' },
+];
+
+function machineIdsFor(count) {
+  const ids = [];
+  for (let i = 0; i < count; i++) ids.push(machines[i % machines.length].id);
+  return ids;
+}
+
+const islands = [
+  makeIsland('isl1', 4, 4, 16, 4, 'h', machineIdsFor(16)),
+  makeIsland('isl2', 4, 12, 16, 4, 'h', machineIdsFor(16)),
+  makeIsland('isl3', 24, 4, 4, 16, 'v', machineIdsFor(16)),
+  makeIsland('isl4', 32, 4, 4, 16, 'v', machineIdsFor(16)),
+];
+
+const layout = {
+  w: W, d: D,
+  entrance: [{ x: 2, z: 2 }],
+  counter: { x: 34, z: 24, w: 5, d: 3 },
+  islands,
+  decor: {
+    wallColor: '#e8e2d6',
+    floorPattern: 'tile',
+    lighting: 'bright',
+    banners: [{ islandId: 'isl1', text: '新台コーナー', color: 'rgba(200,30,30,0.85)' }],
+    signboard: { text: 'AIホール テスト店', color: 'rgba(20,20,60,0.85)' },
+    ceilingPops: true,
+  },
+};
+
+// build dummy sim result: 60 minutes timeline, few customers walking/sitting
+function buildDummyResult() {
+  const minutes = 60;
+  const timeline = [];
+  const custCount = 10;
+  const slots = [];
+  islands.forEach(isl => isl.slots.forEach(s => slots.push({ islandId: isl.id, i: s.i, machineId: s.machineId, x: isl.x + isl.w / 2, z: isl.z + isl.d / 2 })));
+
+  const customers = [];
+  for (let c = 0; c < custCount; c++) {
+    const slot = slots[c % slots.length];
+    customers.push({ id: 'c' + c, slot, phase: Math.random() * Math.PI * 2 });
+  }
+
+  for (let t = 0; t < minutes; t++) {
+    const frameCustomers = customers.map((c, idx) => {
+      const walking = (t + idx * 5) % 20 < 6;
+      let x, z, cstate;
+      if (walking) {
+        const prog = ((t + idx * 5) % 6) / 6;
+        x = 2 + prog * (c.slot.x - 2);
+        z = 2 + prog * (c.slot.z - 2);
+        cstate = 'walk';
+      } else {
+        x = c.slot.x; z = c.slot.z; cstate = 'sit';
+      }
+      return { id: c.id, x, z, state: cstate, slotRef: `${c.slot.islandId}:${c.slot.i}` };
+    });
+    timeline.push({
+      t: 600 + t,
+      customers: frameCustomers,
+      kpi: { inStore: custCount, out: t * 1200, sales: t * 4800 },
+    });
+  }
+
+  const perSlot = slots.map((s, idx) => ({
+    islandId: s.islandId, i: s.i, machineId: s.machineId,
+    occupiedMin: idx % 3 === 0 ? 40 : 0,
+    out: idx % 3 === 0 ? 4000 : 0,
+    sales: idx % 3 === 0 ? 16000 : 0,
+    grossProfit: idx % 3 === 0 ? 2400 : 0,
+    visits: idx % 3 === 0 ? 3 : 0,
+    heat: idx % 3 === 0 ? Math.random() : 0,
+  }));
+
+  return {
+    minutes,
+    timeline,
+    perSlot,
+    summary: { visitors: custCount, peakInStore: custCount, peakHour: 14, totalOut: 60000, totalSales: 240000, grossProfit: 36000, avgStayMin: 30, utilization: 0.33 },
+  };
+}
+
+const container = document.getElementById('view');
+const view = createView3D(container, { layout, machines });
+const result = buildDummyResult();
+view.setResult(result);
+
+const statusEl = document.getElementById('status');
+document.getElementById('btnOrbit').onclick = () => view.setMode('orbit');
+document.getElementById('btnFP').onclick = () => view.setMode('fp');
+document.getElementById('btnPlay').onclick = () => view.play(10);
+document.getElementById('btnPause').onclick = () => view.pause();
+document.getElementById('btnRecord').onclick = async () => {
+  statusEl.textContent = '録画中...';
+  try {
+    const blob = await view.recordVideo({ speed: 20, cameraTour: true, onProgress: (p) => { statusEl.textContent = `録画中... ${(p * 100).toFixed(0)}%`; } });
+    statusEl.textContent = `録画完了 size=${blob.size} type=${blob.type}`;
+    window.__lastBlob = blob;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'hall3d_test.webm'; a.textContent = 'ダウンロード';
+    a.style.display = 'block';
+    document.body.appendChild(a);
+  } catch (err) {
+    statusEl.textContent = 'エラー: ' + err.message;
+    console.error(err);
+  }
+};
+
+window.__view3dReady = true;
+</script>
+</body>
+</html>
