@@ -263,12 +263,30 @@ function setupChips(){
       const ev = chip.dataset.ev;
       if(activeEvents.has(ev)){ activeEvents.delete(ev); chip.classList.remove('on'); }
       else { activeEvents.add(ev); chip.classList.add('on'); }
+      debouncedRun();
     });
+  });
+}
+
+// 入力変更時に自動で再計算する（150msデバウンス）。「試算する」ボタンは即時実行用に残す。
+let debounceTimer = null;
+function debouncedRun(){
+  if(debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(runSimulation, 150);
+}
+
+function setupAutoRecalc(){
+  ['inPop','inSeats','inRivals'].forEach(id=>{
+    $(id).addEventListener('input', debouncedRun);
+  });
+  ['inLocation','inDow'].forEach(id=>{
+    $(id).addEventListener('change', debouncedRun);
   });
 }
 
 $('inHour').addEventListener('input', ()=>{
   $('hourLabel').textContent = $('inHour').value + '時';
+  debouncedRun();
 });
 
 // ---- 来客数モデル ----
@@ -530,8 +548,10 @@ $('btnRun').addEventListener('click', runSimulation);
 $('btnShuffle').addEventListener('click', renderPersonas);
 
 setupChips();
+setupAutoRecalc();
 loadState();
 renderSources();
+runSimulation(); // 初期表示から来客予測・グラフ・ペルソナを出す
 
 })();
 </script>
