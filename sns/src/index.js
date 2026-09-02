@@ -162,7 +162,8 @@ async function handleListPosts(request, env) {
 async function handleGetPost(env, postId) {
   const post = await env.DB.prepare(
     `SELECT p.id, p.body, p.tag, p.created_at, u.handle, u.display_name, u.role,
-       (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count
+       (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+       (SELECT COUNT(*) FROM replies r WHERE r.post_id = p.id) AS reply_count
      FROM posts p JOIN users u ON u.id = p.user_id WHERE p.id = ?`
   )
     .bind(postId)
@@ -701,6 +702,10 @@ export default {
     try {
       if (path === "/" && method === "GET") {
         return new Response(renderPage(), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+      }
+
+      if (path === "/favicon.ico" && method === "GET") {
+        return new Response(null, { status: 204 });
       }
 
       if (path === "/api/users" && method === "POST") {
