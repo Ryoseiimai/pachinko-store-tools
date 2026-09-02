@@ -637,7 +637,7 @@ export function createView3D(container, opts = {}) {
     if (state.mode !== 'fp') return;
     // PCはクリックでPointer Lockに入る(ドラッグ操作はロック不可環境へのフォールバック)
     if (renderer.domElement.requestPointerLock && !isPointerLocked() && e.pointerType !== 'touch') {
-      renderer.domElement.requestPointerLock();
+      Promise.resolve(renderer.domElement.requestPointerLock()).catch(()=>{});
     }
     fp.dragging = true; fp.lastX = e.clientX; fp.lastY = e.clientY;
   }
