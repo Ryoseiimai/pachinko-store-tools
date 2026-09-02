@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>パチンコ屋さんの仕事をAIで真似てみた、店舗編</title>
+<meta name="description" content="パチンコ屋さんの仕事をAIで真似るシリーズ・店舗編。来店予測/経営試算/1日営業3Dシミュレーター/業界SNSを作った経緯と中身を書きました。">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://ryoseiimai.github.io/pachinko-store-tools/story.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="パチンコ屋さんの仕事をAIで真似てみた、店舗編">
+<meta property="og:description" content="来店予測/経営試算/1日営業3Dシミュレーター/業界SNSを作った経緯と中身を書きました。">
+<meta property="og:url" content="https://ryoseiimai.github.io/pachinko-store-tools/story.html">
+<meta property="og:image" content="https://ryoseiimai.github.io/pachinko-store-tools/og/og-index.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="パチンコ屋さんの仕事をAIで真似てみた、店舗編">
+<meta name="twitter:description" content="来店予測/経営試算/1日営業3Dシミュレーター/業界SNSを作った経緯と中身を書きました。">
+<meta name="twitter:image" content="https://ryoseiimai.github.io/pachinko-store-tools/og/og-index.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "パチンコ屋さんの仕事をAIで真似てみた、店舗編",
+  "description": "来店予測/経営試算/1日営業3Dシミュレーター/業界SNSを作った経緯と中身を書きました。",
+  "image": "https://ryoseiimai.github.io/pachinko-store-tools/og/og-index.png",
+  "author": {"@type": "Person", "name": "今井涼晴"},
+  "datePublished": "2026-09-03",
+  "mainEntityOfPage": "https://ryoseiimai.github.io/pachinko-store-tools/story.html"
+}
+</script>
+<style>
+:root{--bg:#0c0c10;--panel:#17171d;--line:#2a2a33;--text:#f2f2f2;--accent:#ff2d55;--accent2:#ffd60a}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans",sans-serif}
+.wrap{max-width:720px;margin:0 auto;padding:32px 20px 60px}
+h1{font-size:26px;line-height:1.5;margin:0 0 8px;color:var(--accent2)}
+.sub{color:#9a9aa5;font-size:13px;margin-bottom:28px}
+h2{font-size:19px;color:var(--accent2);margin:36px 0 14px}
+p{font-size:15px;line-height:1.9;color:#e4e4e8;margin:0 0 16px;word-break:break-word}
+a{color:var(--accent2)}
+.btn{display:inline-block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:4px 0 20px;text-decoration:none;font-size:13px;color:var(--text)}
+.btn:hover{border-color:var(--accent)}
+figure{margin:24px 0}
+figure img{width:100%;border-radius:10px;border:1px solid var(--line);display:block}
+figcaption{font-size:11px;color:#77777f;margin-top:6px;line-height:1.6}
+.back{font-size:13px;margin-bottom:20px;display:inline-block}
+.note{font-size:11px;color:#77777f;margin-top:28px;line-height:1.6}
+.share{display:flex;flex-wrap:wrap;gap:8px;margin-top:28px}
+.share a,.share button{font-size:12px;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;text-decoration:none;font-family:inherit;cursor:pointer}
+.share a:hover,.share button:hover{border-color:var(--accent)}
+</style></head><body><div class="wrap">
+<a class="back" href="index.html">← ツール一覧に戻る</a>
+<h1>パチンコ屋さんの仕事をAIで真似てみた、店舗編</h1>
+<div class="sub">2026-09-03</div>
+
+<p>「パチンコ屋さんの仕事をAIで真似るシリーズ」の店舗側編として、無料ツールを4本公開しました。X（@ryoseichan3160）で投稿したものをまとめて、作った経緯と中身を書きます。</p>
+<a class="btn" href="index.html">ツール一覧を見る</a>
+
+<h2>なぜ店舗側ツールを作ったか</h2>
+<p>これまでこのシリーズでは、お店で行われている仕事をAIで再現できるかを試してきました。今回は「店舗の運営そのもの」に踏み込んでみようと思いました。立地を決めて、台を配置して、1日の営業をシミュレーションして、経営数値を見る。この一連の流れを、登録なしで誰でも触れる形にしてみたかったからです。</p>
+<p>架空の店舗を舞台にしたデモなので、実在の店名や機種名、メーカー名は一切出していません。あくまで仕組みを体験してもらうためのものです。</p>
+
+<h2>4本の中身</h2>
+
+<p><strong>①来店シミュレーター（raiten.html）</strong><br>
+立地・商圏・曜日・イベントの条件を入れると、来客数と客層のペルソナが出てきます。数字の裏付けとして、レジャー白書2026速報、警察庁、日遊協系の統計など16件の出典をそのまま見られるようにしています。</p>
+<a class="btn" href="raiten.html">来店シミュレーターを開く</a>
+
+<p><strong>②経営シミュレーター（keiei.html）</strong><br>
+台数、稼働率、粗利率を動かすと、売上・利益・損益分岐点がどう変わるかを見られます。感度分析とモンテカルロシミュレーションも入れていて、条件が少し変わったときの振れ幅も確認できます。</p>
+<a class="btn" href="keiei.html">経営シミュレーターを開く</a>
+
+<p><strong>③業界SNS「パチつな」</strong><br>
+店舗・メーカー・ライター・従業員という立場のバッジを付けて話せるSNSです。求人、中古台、新台の情報や、店舗運営に関するタグを用意しました。広告規制に関わる言葉はサーバ側で自動的に弾く仕組みにしています。</p>
+<a class="btn" href="https://pachitsuna.kaeru3160.workers.dev/">パチつなを開く</a>
+
+<p><strong>④1日営業シミュレーター（3D・hall3d.html）</strong><br>
+台の配置を決めると1日の営業をシミュレーションし、台ごとのアウト・稼働・売上をヒートマップで表示します。そのまま3Dの店内を一人称視点で歩けて、装飾がどう見えるかも事前に確認できます。動画として書き出すこともできます。</p>
+<a class="btn" href="hall3d.html">1日営業シミュレーターを開く</a>
+
+<figure>
+  <img src="evidence/hall3d_fp_v2.png" alt="3Dシミュレーターを一人称視点で店内を歩いている実画面">
+  <figcaption>一人称視点で店内を歩いている実画面。</figcaption>
+</figure>
+
+<figure>
+  <img src="marketing/videos/hall3d_mid.png" alt="3Dシミュレーターの1日営業をヒートマップで表示した画面">
+  <figcaption>1日の営業を走らせた後の店内ヒートマップ表示。</figcaption>
+</figure>
+
+<h2>数字の裏側について、正直に書いておきます</h2>
+<p>来店シミュレーターの統計は出典のある数字を使っていますが、経営シミュレーターや3Dシミュレーターの一部のパラメータ（稼働率と売上の連動具合など）は、公開情報だけでは決めきれない部分があり、仮の値を置いて調整しています。この仮置きが実態とどれだけ近いかは、正直まだ検証しきれていません。</p>
+<p>一つだけ実測できたことがあります。3Dシミュレーターで、人気機種の島を入口に寄せる配置に変えたところ、同じ条件で店全体のアウトが約7%動きました。これはツール内のロジックに沿った結果で、実店舗でそのまま起きる保証はありませんが、配置ひとつで数字が動くこと自体は体感できたので、投稿しました。</p>
+
+<h2>使ってほしい人</h2>
+<p>店舗運営に関わる方はもちろん、これからパチンコ業界に興味を持つ方や、シミュレーションの仕組みそのものに関心がある方にも触ってもらえたらと思っています。登録は不要です。</p>
+
+<h2>フィードバックはパチつなへ</h2>
+<p>触ってみて気づいたこと、数字の違和感、こうしてほしいという要望があれば、ぜひパチつなに投稿してください。一人で作っているものなので、実際に業界にいる方からの声が一番の手がかりになります。よろしくお願いします。</p>
+<a class="btn" href="https://pachitsuna.kaeru3160.workers.dev/">パチつなを開く</a>
+
+<div class="note">いずれも架空店「AIホール」の試作ツールです。出玉・設定・還元率に関する情報は一切扱いません。統計に基づく試算であり実際の来店・収益を保証するものではありません。</div>
+<div class="share">
+  <a href="https://twitter.com/intent/tweet?text=%E3%83%91%E3%83%81%E3%83%B3%E3%82%B3%E5%B1%8B%E3%81%95%E3%82%93%E3%81%AE%E4%BB%95%E4%BA%8B%E3%82%92AI%E3%81%A7%E7%9C%9F%E4%BC%BC%E3%81%A6%E3%81%BF%E3%81%9F%E3%80%81%E5%BA%97%E8%88%97%E7%B7%A8&url=https%3A%2F%2Fryoseiimai.github.io%2Fpachinko-store-tools%2Fstory.html" target="_blank" rel="noopener">Xでシェア</a>
+  <button type="button" onclick="navigator.clipboard.writeText('https://ryoseiimai.github.io/pachinko-store-tools/story.html');this.textContent='コピーしました'">URLをコピー</button>
+</div>
+</div></body></html>

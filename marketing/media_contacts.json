@@ -1,0 +1,37 @@
+[
+  {
+    "name": "グリーンべると",
+    "site_url": "https://web-greenbelt.jp/",
+    "contact_type": "form",
+    "contact_url_or_email": "https://web-greenbelt.jp/contact/",
+    "note": "運営は株式会社アドサークル。企業情報ページ(https://web-greenbelt.jp/corporate/)にメールinfo@adcircle.co.jp、電話03-6455-0415も記載。取材・情報提供の専用窓口明記なし、フォーム経由で用件を明記して問い合わせる形。"
+  },
+  {
+    "name": "遊技通信",
+    "site_url": "https://www.yugitsushin.jp/",
+    "contact_type": "form",
+    "contact_url_or_email": "https://www.yugitsushin.jp/inquiry/",
+    "note": "問い合わせフォームに「ニュース掲載のお申し込み」等の種別選択があり、情報提供の受付枠がある模様。専用メールアドレスの記載は確認できず。"
+  },
+  {
+    "name": "Amusement Japan",
+    "site_url": "https://amusement-japan.co.jp/",
+    "contact_type": "email",
+    "contact_url_or_email": "info@amusement-japan.co.jp",
+    "note": "運営は株式会社アミューズメントプレスジャパン。会社概要ページ(https://amusement-japan.co.jp/company/)にメールと電話(03-5447-0555)記載。フォーム(/apj-bin/contact.php)も存在するが、編集部宛の専用窓口の明記はなし。"
+  },
+  {
+    "name": "パチンコビレッジ",
+    "site_url": "https://www.pachinkovillage.com/",
+    "contact_type": "form",
+    "contact_url_or_email": "https://www.pachinkovillage.com/contact/",
+    "note": "運営は株式会社パチンコビレッジ。フォームの受付カテゴリは意見・要望・機種評価削除依頼等で、「営業メールは全てお断り」と明記あり。取材依頼の受付は明確には記載されていない。"
+  },
+  {
+    "name": "P-WORLD",
+    "site_url": "https://www.p-world.co.jp/",
+    "contact_type": "form",
+    "contact_url_or_email": "https://www.p-world.co.jp/company/contact.html",
+    "note": "運営は株式会社ピーワールド。フォームのカテゴリは「採用に関するお問い合わせ」と「その他」のみで、取材依頼受付の明記なし。「その他」経由で問い合わせる形になる可能性。"
+  }
+]
