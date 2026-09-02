@@ -203,6 +203,12 @@ $('inTimeline').addEventListener('input', (e) => {
 });
 $('btnModeOrbit').addEventListener('click', () => view3d && view3d.setMode('orbit'));
 $('btnModeFP').addEventListener('click', () => view3d && view3d.setMode('fp'));
+$('btnTour').addEventListener('click', () => {
+  if (!view3d) return;
+  if (view3d.isTouring && view3d.isTouring()) view3d.stopTour();
+  else view3d.startTour();
+});
+$('btnFullscreen').addEventListener('click', () => view3d && view3d.toggleFullscreen());
 $('btnRecord').addEventListener('click', async () => {
   if (!view3d) return;
   $('recordStatus').textContent = '録画準備中…';

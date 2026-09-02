@@ -234,6 +234,57 @@ function trySeatCustomer(slots, occupied, machineMap, rand){
   return { slot: pick.slot, machine: m, stay };
 }
 
+// ---- 客の歩行(簡易版) ----
+// 経路: 入口 → 最寄りの主通路(入口を出てすぐの横移動レーン) → 目的の島の通路 → 台の前、の折れ線。
+// 島の内部は通らない(壁沿い・通路上のみを移動する簡易モデル)。1分あたり最大60m進む。
+const WALK_SPEED_M_PER_MIN = 60; // 仮置き: 1分あたりの最大歩行距離(簡易版)
+const GRID_METERS = 0.5;         // レイアウトの1マス=0.5m
+const MAIN_AISLE_FRACTION = 0.35; // 入口から目的地までの距離のうち、主通路へ抜けるまでの割合(仮置き)
+
+function buildWalkPath(from, to){
+  const midZ = from.z + (to.z - from.z) * MAIN_AISLE_FRACTION;
+  return [
+    { x: from.x, z: from.z },
+    { x: from.x, z: midZ },
+    { x: to.x, z: midZ },
+    { x: to.x, z: to.z },
+  ];
+}
+
+function pathLengthMeters(path){
+  let total = 0;
+  for (let i = 1; i < path.length; i++) total += Math.hypot(path[i].x - path[i - 1].x, path[i].z - path[i - 1].z);
+  return total * GRID_METERS;
+}
+
+function walkMinutesFor(path){
+  return Math.max(1, Math.ceil(pathLengthMeters(path) / WALK_SPEED_M_PER_MIN));
+}
+
+// 折れ線pathに沿って、minutesCount分割した各分の到達点を返す(最後の要素が終点)
+function walkFrames(path, minutesCount){
+  const segLens = [];
+  let total = 0;
+  for (let i = 1; i < path.length; i++) { const d = Math.hypot(path[i].x - path[i - 1].x, path[i].z - path[i - 1].z); segLens.push(d); total += d; }
+  const frames = [];
+  for (let m = 1; m <= minutesCount; m++) {
+    const targetDist = total * (m / minutesCount);
+    let acc = 0, pt = path[path.length - 1];
+    for (let i = 0; i < segLens.length; i++) {
+      const segLen = segLens[i];
+      if (acc + segLen >= targetDist || i === segLens.length - 1) {
+        const segFrac = segLen > 0 ? Math.min(1, Math.max(0, (targetDist - acc) / segLen)) : 1;
+        const a = path[i], b = path[i + 1];
+        pt = { x: a.x + (b.x - a.x) * segFrac, z: a.z + (b.z - a.z) * segFrac };
+        break;
+      }
+      acc += segLen;
+    }
+    frames.push(pt);
+  }
+  return frames;
+}
+
 // 780分(10:00-23:00)の来店/着席/OUTシミュレーションを実行する
 export function simulate(input){
   const { layout, machines, dayParams = {} } = input;
@@ -246,6 +297,7 @@ export function simulate(input){
 
   const machineMap = new Map(machines.map(m => [m.id, m]));
   const slots = attachProximity(collectSlots(layout), layout);
+  const entrance = (layout.entrance && layout.entrance[0]) || { x: 0, z: 0 };
 
   const totalVisitors = Math.round(estimateDailyVisitors(layout, { ...dayParams, openHour, closeHour }, machineMap));
 
@@ -270,68 +322,113 @@ export function simulate(input){
   const perSlotStat = new Map();
   for (const s of slots) perSlotStat.set(s.key, { islandId: s.islandId, i: s.i, machineId: s.machineId, occupiedMin: 0, out: 0, sales: 0, visits: 0 });
 
-  const occupied = new Map(); // slot.key -> customer
-  let customers = [];
+  const entrancePos = { x: entrance.x, z: entrance.z };
+  const occupied = new Map(); // slot.key -> customer(予約。歩行中も他客に取られないよう確保する)
+  let customers = []; // 各要素: { phase:'walk-in'|'sit'|'walk-out', ... }
   let nextId = 1;
-  let inStoreCount = 0, peakInStore = 0, peakHour = openHour;
-  let totalOut = 0, totalSales = 0, totalStayMin = 0, uniqueVisitors = 0, walkAways = 0;
+  let peakInStore = 0, peakHour = openHour;
+  let totalOut = 0, totalSales = 0, totalStayMin = 0, uniqueVisitors = 0, walkAways = 0, walkingCustomerMinutes = 0;
   const timeline = new Array(minutes);
 
   for (let t = 0; t < minutes; t++) {
+    // ---- 来店(入口→台への歩行を開始) ----
     const arrivals = arrivalsPerMinute[t];
     for (let a = 0; a < arrivals; a++) {
       const seated = trySeatCustomer(slots, occupied, machineMap, rand);
       if (!seated) { walkAways++; continue; }
-      const cust = { id: nextId++, slot: seated.slot, x: seated.slot.x, z: seated.slot.z, startT: t, endT: t + seated.stay, machine: seated.machine };
+      const slotPos = { x: seated.slot.x, z: seated.slot.z };
+      const path = buildWalkPath(entrancePos, slotPos);
+      const walkInMinutes = walkMinutesFor(path);
+      const sitStart = t + walkInMinutes;
+      const cust = {
+        id: nextId++, slot: seated.slot, machine: seated.machine,
+        phase: 'walk-in', walkStartT: t, walkInMinutes, walkFrames: walkFrames(path, walkInMinutes),
+        sitStart, sitEnd: sitStart + seated.stay,
+        x: entrancePos.x, z: entrancePos.z,
+      };
       occupied.set(seated.slot.key, cust);
       customers.push(cust);
-      inStoreCount++;
       uniqueVisitors++;
       perSlotStat.get(seated.slot.key).visits++;
     }
 
+    // ---- 各客の当該分の位置を確定し、着席分のみOUT/売上を加算 ----
     for (const c of customers) {
-      if (t < c.endT) {
-        const st = perSlotStat.get(c.slot.key);
-        // 売上 = アウト玉数 × 貸玉単価(rate) × 貸玉率。アウトには持ち玉の再投入(打ち直し)が
-        // 含まれるため、貸玉として売上計上されるのはその一部(貸玉率)のみとして概算する。
-        const salesPerMin = c.machine.outPerMin * c.machine.rate * salesRatio;
-        st.occupiedMin++;
-        st.out += c.machine.outPerMin;
-        st.sales += salesPerMin;
-        totalOut += c.machine.outPerMin;
-        totalSales += salesPerMin;
+      if (c.phase === 'walk-in') {
+        const idx = t - c.walkStartT;
+        if (idx >= 0 && idx < c.walkFrames.length) { const p = c.walkFrames[idx]; c.x = p.x; c.z = p.z; }
+        walkingCustomerMinutes++;
+        if (t + 1 >= c.sitStart) { c.phase = 'sit'; c.x = c.slot.x; c.z = c.slot.z; }
+      } else if (c.phase === 'sit') {
+        c.x = c.slot.x; c.z = c.slot.z;
+        if (t < c.sitEnd) {
+          // 売上 = アウト玉数 × 貸玉単価(rate) × 貸玉率。アウトには持ち玉の再投入(打ち直し)が
+          // 含まれるため、貸玉として売上計上されるのはその一部(貸玉率)のみとして概算する。
+          const salesPerMin = c.machine.outPerMin * c.machine.rate * salesRatio;
+          const st = perSlotStat.get(c.slot.key);
+          st.occupiedMin++;
+          st.out += c.machine.outPerMin;
+          st.sales += salesPerMin;
+          totalOut += c.machine.outPerMin;
+          totalSales += salesPerMin;
+        }
+      } else { // walk-out
+        const idx = t - c.walkOutStartT;
+        if (idx >= 0 && idx < c.walkOutFrames.length) { const p = c.walkOutFrames[idx]; c.x = p.x; c.z = p.z; }
+        walkingCustomerMinutes++;
       }
     }
 
+    // ---- 着席終了 → 台移動 or 退店(入口への歩行を開始) / 歩行完了で退店 ----
     const remaining = [];
     for (const c of customers) {
-      if (t + 1 >= c.endT) {
+      if (c.phase === 'sit' && t + 1 >= c.sitEnd) {
         occupied.delete(c.slot.key);
-        inStoreCount--;
-        totalStayMin += (c.endT - c.startT);
-        if (rand() < MOVE_PROBABILITY) {
-          const moved = trySeatCustomer(slots, occupied, machineMap, rand);
-          if (moved) {
-            const c2 = { id: nextId++, slot: moved.slot, x: moved.slot.x, z: moved.slot.z, startT: t + 1, endT: t + 1 + moved.stay, machine: moved.machine };
-            occupied.set(moved.slot.key, c2);
-            remaining.push(c2);
-            inStoreCount++;
-            perSlotStat.get(moved.slot.key).visits++;
-            continue;
-          }
+        totalStayMin += (c.sitEnd - c.sitStart);
+        const fromPos = { x: c.slot.x, z: c.slot.z };
+        const moved = (rand() < MOVE_PROBABILITY) ? trySeatCustomer(slots, occupied, machineMap, rand) : null;
+        if (moved) {
+          const toPos = { x: moved.slot.x, z: moved.slot.z };
+          const path2 = buildWalkPath(fromPos, toPos);
+          const walkInMinutes2 = walkMinutesFor(path2);
+          const sitStart2 = t + 1 + walkInMinutes2;
+          const c2 = {
+            id: nextId++, slot: moved.slot, machine: moved.machine,
+            phase: 'walk-in', walkStartT: t + 1, walkInMinutes: walkInMinutes2, walkFrames: walkFrames(path2, walkInMinutes2),
+            sitStart: sitStart2, sitEnd: sitStart2 + moved.stay,
+            x: fromPos.x, z: fromPos.z,
+          };
+          occupied.set(moved.slot.key, c2);
+          remaining.push(c2);
+          perSlotStat.get(moved.slot.key).visits++;
+          continue;
         }
-      } else {
+        // 退店: 台→入口へ歩く
+        const pathOut = buildWalkPath(fromPos, entrancePos);
+        const walkOutMinutes = walkMinutesFor(pathOut);
+        c.phase = 'walk-out';
+        c.walkOutStartT = t + 1;
+        c.walkOutFrames = walkFrames(pathOut, walkOutMinutes);
         remaining.push(c);
+        continue;
       }
+      if (c.phase === 'walk-out' && t + 1 >= c.walkOutStartT + c.walkOutFrames.length) {
+        continue; // 入口に到達=退店完了。timelineから除外
+      }
+      remaining.push(c);
     }
     customers = remaining;
 
+    const inStoreCount = customers.length;
     if (inStoreCount > peakInStore) { peakInStore = inStoreCount; peakHour = openHour + Math.floor(t / 60); }
 
     timeline[t] = {
       t,
-      customers: customers.map(c => ({ id: c.id, x: c.x, z: c.z, state: 'sit', slotRef: { islandId: c.slot.islandId, i: c.slot.i, side: c.slot.side } })),
+      customers: customers.map(c => ({
+        id: c.id, x: c.x, z: c.z,
+        state: c.phase === 'sit' ? 'sit' : (c.phase === 'walk-out' ? 'leave' : 'walk'),
+        slotRef: { islandId: c.slot.islandId, i: c.slot.i, side: c.slot.side },
+      })),
       kpi: { inStore: inStoreCount, out: Math.round(totalOut), sales: Math.round(totalSales) },
     };
   }
@@ -349,6 +446,7 @@ export function simulate(input){
   const summary = {
     visitors: uniqueVisitors,
     walkAways,
+    walkingCustomerMinutes,
     peakInStore,
     peakHour,
     totalOut: Math.round(totalOut),

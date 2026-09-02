@@ -73,6 +73,8 @@ export function createView3D(container, opts = {}) {
     mode: 'orbit',
     disposed: false,
     openHour: 10, // simResult.timelineのtは開店からの相対分。HUD表示用に絶対時刻へ変換する基準
+    tour: { active: false, waypoints: [], idx: 0, travelled: 0 },
+    recording: false, // 録画中はrecordVideoのtick()がカメラ/HUDを単独で駆動する(rAFループの二重更新を防ぐ)
   };
 
   const machineById = new Map();
@@ -126,6 +128,7 @@ export function createView3D(container, opts = {}) {
 
   const slotMeshIndex = new Map(); // key "islandId:i" -> {screenMat, group}
   const islandAABBs = []; // {minX,maxX,minZ,maxZ}
+  let counterAABB = null;
   let floorW = 20, floorD = 20, floorCX = 0, floorCZ = 0;
 
   // --- HUD overlay canvas (rendered onto a plane so it's included in captureStream) ---
@@ -173,6 +176,46 @@ export function createView3D(container, opts = {}) {
       .add(up.multiplyScalar(heightAtDist * 0.5 - h * 0.5 - heightAtDist * 0.03));
     hudMesh.position.copy(center);
     hudMesh.quaternion.copy(camera.quaternion);
+  }
+
+  // --- minimap (右下・DOM上のCanvas。録画には映らないが操作の目安として常時表示) ---
+  const minimapCanvas = document.createElement('canvas');
+  minimapCanvas.width = 140; minimapCanvas.height = 140;
+  Object.assign(minimapCanvas.style, {
+    position: 'absolute', right: '12px', bottom: '12px', borderRadius: '8px',
+    border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(10,10,14,0.6)', pointerEvents: 'none',
+  });
+  container.style.position = container.style.position || 'relative';
+  container.appendChild(minimapCanvas);
+  const mmCtx = minimapCanvas.getContext('2d');
+  function drawMinimap() {
+    if (!state.layout) return;
+    const w = minimapCanvas.width, h = minimapCanvas.height;
+    mmCtx.clearRect(0, 0, w, h);
+    mmCtx.fillStyle = 'rgba(10,10,14,0.75)';
+    mmCtx.fillRect(0, 0, w, h);
+    const pad = 6;
+    const scale = Math.min((w - pad * 2) / Math.max(floorW, 1), (h - pad * 2) / Math.max(floorD, 1));
+    const ox = pad, oy = pad;
+    mmCtx.fillStyle = '#3a3a44';
+    mmCtx.fillRect(ox, oy, floorW * scale, floorD * scale);
+    mmCtx.fillStyle = '#7a7a86';
+    islandAABBs.forEach(ab => {
+      mmCtx.fillRect(ox + ab.minX * scale, oy + ab.minZ * scale, (ab.maxX - ab.minX) * scale, (ab.maxZ - ab.minZ) * scale);
+    });
+    const dirV = new THREE.Vector3();
+    camera.getWorldDirection(dirV);
+    const yaw = Math.atan2(dirV.x, dirV.z);
+    const cx = ox + THREE.MathUtils.clamp(camera.position.x, 0, floorW) * scale;
+    const cz = oy + THREE.MathUtils.clamp(camera.position.z, 0, floorD) * scale;
+    mmCtx.save();
+    mmCtx.translate(cx, cz);
+    mmCtx.rotate(yaw);
+    mmCtx.fillStyle = '#ffcc00';
+    mmCtx.beginPath();
+    mmCtx.moveTo(0, -7); mmCtx.lineTo(5, 6); mmCtx.lineTo(-5, 6); mmCtx.closePath();
+    mmCtx.fill();
+    mmCtx.restore();
   }
 
   function minutesToClock(t) {
@@ -247,14 +290,17 @@ export function createView3D(container, opts = {}) {
     });
 
     // counter
+    counterAABB = null;
     if (layout.counter) {
       const c = layout.counter;
-      const geo = new THREE.BoxGeometry(c.w * GRID, 1.1, c.d * GRID);
+      const cx = c.x * GRID, cz = c.z * GRID, cw = c.w * GRID, cd = c.d * GRID;
+      const geo = new THREE.BoxGeometry(cw, 1.1, cd);
       const mat = new THREE.MeshStandardMaterial({ color: 0x3a3f55 });
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(c.x * GRID + (c.w * GRID) / 2, 0.55, c.z * GRID + (c.d * GRID) / 2);
+      mesh.position.set(cx + cw / 2, 0.55, cz + cd / 2);
       mesh.castShadow = true; mesh.receiveShadow = true;
       wallsGroup.add(mesh);
+      counterAABB = { minX: cx, maxX: cx + cw, minZ: cz, maxZ: cz + cd };
     }
 
     // entrance auto door marker
@@ -429,10 +475,14 @@ export function createView3D(container, opts = {}) {
     return g;
   }
 
-  function syncCustomers() {
+  function syncCustomers(frac = 0) {
     const tl = getCurrentTimeline();
     const seen = new Set();
     if (tl && tl.customers) {
+      // state:'walk'の客は次の分のx,zへ向けて分内を線形補間し、歩行らしい上下動を足す。
+      // 'sit'は着席位置に固定、'leave'は非表示にする(将来的にengine側で完全に配列から消える想定)。
+      const nextTl = state.simResult && state.simResult.timeline[state.minuteIndex + 1];
+      const nextById = nextTl ? new Map(nextTl.customers.map(c => [c.id, c])) : null;
       tl.customers.forEach((c, idx) => {
         seen.add(c.id);
         let mesh = customerMeshes.get(c.id);
@@ -441,7 +491,16 @@ export function createView3D(container, opts = {}) {
           customersGroup.add(mesh);
           customerMeshes.set(c.id, mesh);
         }
-        mesh.position.set(c.x * GRID, 0, c.z * GRID);
+        let x = c.x, z = c.z;
+        if (c.state === 'walk' && nextById) {
+          const nextC = nextById.get(c.id);
+          if (nextC && nextC.state !== 'leave') {
+            x = THREE.MathUtils.lerp(c.x, nextC.x, frac);
+            z = THREE.MathUtils.lerp(c.z, nextC.z, frac);
+          }
+        }
+        const bob = c.state === 'walk' ? Math.abs(Math.sin(performance.now() * 0.008 + idx)) * 0.05 : 0;
+        mesh.position.set(x * GRID, bob, z * GRID);
         mesh.visible = c.state !== 'leave';
         mesh.scale.y = c.state === 'sit' ? 0.7 : 1;
       });
@@ -469,33 +528,127 @@ export function createView3D(container, opts = {}) {
   }
 
   // --- first-person movement ---
+  const WALK_SPEED = 3;   // m/s
+  const RUN_SPEED = 6;    // m/s (Shift)
+  const ACCEL = 10;       // 速度がターゲットへ収束する速さ(大きいほどキビキビ)
+  const TOUR_SPEED = 2;   // m/s 自動ツアーの歩行速度
   const fp = {
     active: false,
     yaw: Math.PI, pitch: -0.05,
     pos: new THREE.Vector3(1, 1.6, 1),
-    vel: new THREE.Vector3(),
+    vel: new THREE.Vector3(), // 現在の水平速度(m/s)。目標速度へなめらかに収束させる
     keys: new Set(),
     dragging: false,
     lastX: 0, lastY: 0,
     stick: { active: false, dx: 0, dy: 0, id: null },
+    forwardHeld: false, // スマホの「▲進む」ボタン
   };
 
-  function collidesWithIsland(x, z) {
+  function collidesWithObstacles(x, z) {
+    // 島とカウンターだけ衝突対象(壁はfloorW/floorDの範囲クランプで別途止める)
     const r = 0.3;
     for (const ab of islandAABBs) {
+      if (x + r > ab.minX && x - r < ab.maxX && z + r > ab.minZ && z - r < ab.maxZ) return true;
+    }
+    if (counterAABB) {
+      const ab = counterAABB;
       if (x + r > ab.minX && x - r < ab.maxX && z + r > ab.minZ && z - r < ab.maxZ) return true;
     }
     return false;
   }
 
+  // 意図的簡略化: 通路経路はナビメッシュではなく「各島の外周を1.2mのオフセットで通る折れ線」の
+  // 簡易導出。島同士が近接する複雑な配置では通路が重なる場合がある(safePointで軽い回避のみ)。
+  // 本格対応する場合はnavmesh(例: three-pathfinding)でグラフ探索する。
+  function safeTourPoint(x, z) {
+    x = THREE.MathUtils.clamp(x, 0.4, floorW - 0.4);
+    z = THREE.MathUtils.clamp(z, 0.4, floorD - 0.4);
+    if (!collidesWithObstacles(x, z)) return { x, z };
+    for (let i = 1; i <= 8; i++) {
+      const nx = THREE.MathUtils.clamp(x + (x >= floorCX ? i * 0.3 : -i * 0.3), 0.4, floorW - 0.4);
+      if (!collidesWithObstacles(nx, z)) return { x: nx, z };
+    }
+    return { x, z };
+  }
+
+  function buildTourWaypoints() {
+    const layout = state.layout;
+    if (!layout) return [];
+    const entrance = layout.entrance && layout.entrance[0];
+    const ex = entrance ? entrance.x * GRID : 1;
+    const ez = entrance ? entrance.z * GRID : 1;
+    const startDx = floorCX - ex, startDz = floorCZ - ez;
+    const startYaw = Math.atan2(startDx, startDz);
+    const inward = new THREE.Vector3(Math.sin(startYaw), 0, Math.cos(startYaw)).multiplyScalar(1.0);
+    const start = safeTourPoint(ex + inward.x, ez + inward.z);
+
+    const pts = [start];
+    const sorted = islandAABBs.slice().sort((a, b) => (a.minX - b.minX) || (a.minZ - b.minZ));
+    let dir = 1;
+    sorted.forEach(ab => {
+      const laneX = ab.minX - 0.9;
+      const zTop = ab.minZ - 0.6;
+      const zBot = ab.maxZ + 0.6;
+      const p1 = safeTourPoint(laneX, dir > 0 ? zTop : zBot);
+      const p2 = safeTourPoint(laneX, dir > 0 ? zBot : zTop);
+      pts.push(p1, p2);
+      dir *= -1;
+    });
+    pts.push(start);
+    return pts;
+  }
+
+  function startTourInternal() {
+    state.tour.waypoints = buildTourWaypoints();
+    state.tour.idx = 0;
+    state.tour.travelled = 0;
+    state.tour.active = state.tour.waypoints.length >= 2;
+    orbit.enabled = false;
+  }
+
+  function updateTour(dt) {
+    const tour = state.tour;
+    if (!tour.active || tour.waypoints.length < 2) return false;
+    if (tour.idx >= tour.waypoints.length - 1) { tour.active = false; return false; }
+    const a = tour.waypoints[tour.idx], b = tour.waypoints[tour.idx + 1];
+    const segLen = Math.hypot(b.x - a.x, b.z - a.z) || 0.001;
+    tour.travelled += TOUR_SPEED * Math.min(dt, 0.1);
+    let t = tour.travelled / segLen;
+    if (t >= 1) {
+      tour.idx++;
+      tour.travelled = 0;
+      t = 0;
+      if (tour.idx >= tour.waypoints.length - 1) { tour.active = false; }
+    }
+    const cx = THREE.MathUtils.lerp(a.x, b.x, THREE.MathUtils.clamp(t, 0, 1));
+    const cz = THREE.MathUtils.lerp(a.z, b.z, THREE.MathUtils.clamp(t, 0, 1));
+    const baseYaw = Math.atan2(b.x - a.x, b.z - a.z);
+    const wobble = Math.sin(performance.now() * 0.0015) * 0.3; // 歩きながら軽く首を振る演出
+    const dirVec = new THREE.Vector3(Math.sin(baseYaw + wobble), 0, Math.cos(baseYaw + wobble));
+    camera.position.set(cx, 1.5, cz);
+    camera.lookAt(cx + dirVec.x, 1.5, cz + dirVec.z);
+    return true;
+  }
+
   function onKeyDown(e) { fp.keys.add(e.code); }
   function onKeyUp(e) { fp.keys.delete(e.code); }
+  function isPointerLocked() { return document.pointerLockElement === renderer.domElement; }
   function onPointerDown(e) {
     if (state.mode !== 'fp') return;
+    // PCはクリックでPointer Lockに入る(ドラッグ操作はロック不可環境へのフォールバック)
+    if (renderer.domElement.requestPointerLock && !isPointerLocked() && e.pointerType !== 'touch') {
+      renderer.domElement.requestPointerLock();
+    }
     fp.dragging = true; fp.lastX = e.clientX; fp.lastY = e.clientY;
   }
   function onPointerMove(e) {
-    if (state.mode !== 'fp' || !fp.dragging) return;
+    if (state.mode !== 'fp') return;
+    if (isPointerLocked()) {
+      fp.yaw -= (e.movementX || 0) * 0.0028;
+      fp.pitch = THREE.MathUtils.clamp(fp.pitch - (e.movementY || 0) * 0.0028, -1.2, 1.2);
+      return;
+    }
+    if (!fp.dragging) return;
     const dx = e.clientX - fp.lastX, dy = e.clientY - fp.lastY;
     fp.lastX = e.clientX; fp.lastY = e.clientY;
     fp.yaw -= dx * 0.004;
@@ -525,7 +678,26 @@ export function createView3D(container, opts = {}) {
     stickBase.appendChild(stickKnob);
     container.style.position = container.style.position || 'relative';
     container.appendChild(stickBase);
+
+    // 画面下中央「▲進む」ボタン(押し続けで前進。左スティック/矢印キーと併用可)
+    forwardBtn = document.createElement('button');
+    forwardBtn.textContent = '▲進む';
+    Object.assign(forwardBtn.style, {
+      position: 'absolute', left: '50%', bottom: '20px', transform: 'translateX(-50%)',
+      width: '84px', height: '54px', borderRadius: '10px', border: 'none',
+      background: 'rgba(255,255,255,0.25)', color: '#fff', fontSize: '13px', fontWeight: '700',
+      touchAction: 'none', display: 'none', userSelect: 'none',
+    });
+    const setForward = (v) => { fp.forwardHeld = v; };
+    forwardBtn.addEventListener('touchstart', (e) => { e.preventDefault(); setForward(true); }, { passive: false });
+    forwardBtn.addEventListener('touchend', (e) => { e.preventDefault(); setForward(false); }, { passive: false });
+    forwardBtn.addEventListener('touchcancel', () => setForward(false));
+    forwardBtn.addEventListener('pointerdown', () => setForward(true));
+    forwardBtn.addEventListener('pointerup', () => setForward(false));
+    forwardBtn.addEventListener('pointerleave', () => setForward(false));
+    container.appendChild(forwardBtn);
   }
+  let forwardBtn = null;
   buildTouchUI();
 
   function handleTouchStart(e) {
@@ -577,19 +749,27 @@ export function createView3D(container, opts = {}) {
     if (fp.keys.has('KeyA') || fp.keys.has('ArrowLeft')) mx -= 1;
     if (fp.keys.has('KeyD') || fp.keys.has('ArrowRight')) mx += 1;
     if (fp.stick.active) { mx += fp.stick.dx; mz += fp.stick.dy; }
+    if (fp.forwardHeld) mz -= 1;
     const len = Math.hypot(mx, mz);
     if (len > 0.001) { mx /= len; mz /= len; }
 
-    const speed = 2.6 * dt;
+    const running = fp.keys.has('ShiftLeft') || fp.keys.has('ShiftRight');
+    const targetSpeed = (mx !== 0 || mz !== 0) ? (running ? RUN_SPEED : WALK_SPEED) : 0;
     const forward = new THREE.Vector3(Math.sin(fp.yaw), 0, Math.cos(fp.yaw));
     const right = new THREE.Vector3(Math.cos(fp.yaw), 0, -Math.sin(fp.yaw));
-    const move = new THREE.Vector3()
-      .addScaledVector(forward, -mz * speed)
-      .addScaledVector(right, mx * speed);
+    const targetVel = new THREE.Vector3()
+      .addScaledVector(forward, -mz * targetSpeed)
+      .addScaledVector(right, mx * targetSpeed);
 
-    const nx = fp.pos.x + move.x, nz = fp.pos.z + move.z;
-    if (!collidesWithIsland(nx, fp.pos.z)) fp.pos.x = THREE.MathUtils.clamp(nx, 0.3, floorW - 0.3);
-    if (!collidesWithIsland(fp.pos.x, nz)) fp.pos.z = THREE.MathUtils.clamp(nz, 0.3, floorD - 0.3);
+    // 目標速度へ指数的に収束させ、発進・停止をなめらかにする
+    const accelT = 1 - Math.exp(-ACCEL * dt);
+    fp.vel.lerp(targetVel, accelT);
+
+    const nx = fp.pos.x + fp.vel.x * dt, nz = fp.pos.z + fp.vel.z * dt;
+    if (!collidesWithObstacles(nx, fp.pos.z)) fp.pos.x = THREE.MathUtils.clamp(nx, 0.3, floorW - 0.3);
+    else fp.vel.x = 0;
+    if (!collidesWithObstacles(fp.pos.x, nz)) fp.pos.z = THREE.MathUtils.clamp(nz, 0.3, floorD - 0.3);
+    else fp.vel.z = 0;
 
     camera.position.set(fp.pos.x, fp.pos.y, fp.pos.z);
     const dir = new THREE.Vector3(Math.sin(fp.yaw) * Math.cos(fp.pitch), Math.sin(fp.pitch), Math.cos(fp.yaw) * Math.cos(fp.pitch));
@@ -611,12 +791,17 @@ export function createView3D(container, opts = {}) {
     );
     fp.yaw = yaw;
     fp.pitch = -0.05;
+    fp.vel.set(0, 0, 0);
     orbit.enabled = false;
     if (stickBase) stickBase.style.display = 'block';
+    if (forwardBtn) forwardBtn.style.display = 'block';
   }
   function enterOrbitMode() {
     orbit.enabled = true;
     if (stickBase) stickBase.style.display = 'none';
+    if (forwardBtn) forwardBtn.style.display = 'none';
+    fp.forwardHeld = false;
+    if (isPointerLocked()) document.exitPointerLock();
   }
 
   // --- resize ---
@@ -629,6 +814,22 @@ export function createView3D(container, opts = {}) {
   const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => doResize()) : null;
   if (resizeObserver) resizeObserver.observe(container);
   window.addEventListener('resize', doResize);
+
+  // --- fullscreen ---
+  function toggleFullscreen() {
+    const isFull = document.fullscreenElement === container || container.classList.contains('pseudo-fullscreen');
+    if (isFull) {
+      if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); }
+      container.classList.remove('pseudo-fullscreen');
+    } else if (container.requestFullscreen) {
+      container.requestFullscreen().catch(() => { container.classList.add('pseudo-fullscreen'); });
+    } else {
+      container.classList.add('pseudo-fullscreen'); // requestFullscreen非対応環境(一部スマホ)向けの疑似全画面
+    }
+    setTimeout(doResize, 60);
+  }
+  function onFullscreenChange() { setTimeout(doResize, 60); }
+  document.addEventListener('fullscreenchange', onFullscreenChange);
 
   // --- animation loop ---
   let lastTime = performance.now();
@@ -646,20 +847,25 @@ export function createView3D(container, opts = {}) {
         playAccum -= 1;
         state.minuteIndex = Math.min(state.minuteIndex + 1, state.simResult.timeline.length - 1);
       }
-      syncCustomers();
+      syncCustomers(playAccum);
       syncScreens();
       if (state.minuteIndex >= state.simResult.timeline.length - 1) state.playing = false;
     }
 
-    if (state.mode === 'fp') {
-      updateFP(dt);
-    } else {
-      orbit.update();
+    if (!state.recording) {
+      const touring = updateTour(dt);
+      if (!touring) {
+        if (state.mode === 'fp') {
+          updateFP(dt);
+        } else {
+          orbit.update();
+        }
+      }
+      playerLight.position.set(camera.position.x, camera.position.y + 0.5, camera.position.z);
+      drawHud();
+      positionHudInScreenSpace();
     }
-    playerLight.position.set(camera.position.x, camera.position.y + 0.5, camera.position.z);
-
-    drawHud();
-    positionHudInScreenSpace();
+    drawMinimap();
     renderer.render(scene, camera);
   }
 
@@ -700,9 +906,10 @@ export function createView3D(container, opts = {}) {
       } catch (err) { reject(err); return; }
       const chunks = [];
       recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-      recorder.onerror = (e) => reject(e.error || new Error('recorder error'));
+      recorder.onerror = (e) => { state.recording = false; reject(e.error || new Error('recorder error')); };
       recorder.onstop = () => {
         state.playing = false;
+        state.recording = false;
         resolve(new Blob(chunks, { type: mimeType || 'video/webm' }));
       };
 
@@ -710,8 +917,9 @@ export function createView3D(container, opts = {}) {
       const totalMinutes = state.simResult.timeline.length;
       state.minuteIndex = 0;
       state.playing = false;
+      state.recording = true;
 
-      const tourCuts = cameraTour ? buildCameraTourCuts() : null;
+      if (cameraTour) startTourInternal();
       let elapsed = 0;
       const frameDt = 1 / 30;
       recorder.start();
@@ -720,12 +928,20 @@ export function createView3D(container, opts = {}) {
         if (state.disposed) { try { recorder.stop(); } catch (e) {} return; }
         elapsed += frameDt;
         const simMinutesPerSec = 6 * speed;
-        state.minuteIndex = Math.min(totalMinutes - 1, Math.floor(elapsed * simMinutesPerSec));
-        syncCustomers();
+        const simMinuteFloat = Math.min(totalMinutes - 1, elapsed * simMinutesPerSec);
+        state.minuteIndex = Math.floor(simMinuteFloat);
+        syncCustomers(simMinuteFloat - state.minuteIndex);
         syncScreens();
 
-        if (tourCuts) applyCameraTour(tourCuts, elapsed);
-        else if (state.mode !== 'fp') orbit.update();
+        if (cameraTour) {
+          if (!state.tour.active) startTourInternal(); // 一周し終えたらループして最後まで動き続ける
+          updateTour(frameDt);
+        } else if (state.mode !== 'fp') {
+          orbit.update();
+        }
+        playerLight.position.set(camera.position.x, camera.position.y + 0.5, camera.position.z);
+        drawHud();
+        positionHudInScreenSpace();
 
         if (typeof onProgress === 'function') {
           onProgress(state.minuteIndex / (totalMinutes - 1));
@@ -735,6 +951,7 @@ export function createView3D(container, opts = {}) {
           setTimeout(() => {
             try { recorder.stop(); } catch (e) {}
             state.mode = prevMode;
+            state.tour.active = false;
           }, 200);
           return;
         }
@@ -742,32 +959,6 @@ export function createView3D(container, opts = {}) {
       };
       tick();
     });
-  }
-
-  function buildCameraTourCuts() {
-    const cx = floorCX, cz = floorCZ;
-    const overview = { pos: new THREE.Vector3(cx + floorW * 0.5, Math.max(floorW, floorD) * 0.7, cz + floorD * 0.9), look: new THREE.Vector3(cx, 0, cz) };
-    const entrance = state.layout.entrance && state.layout.entrance[0]
-      ? new THREE.Vector3(state.layout.entrance[0].x * GRID, 1.6, state.layout.entrance[0].z * GRID)
-      : new THREE.Vector3(1, 1.6, 1);
-    const entranceCut = { pos: entrance.clone(), look: new THREE.Vector3(cx, 1.6, cz) };
-    const walkTarget = islandAABBs[0]
-      ? new THREE.Vector3((islandAABBs[0].minX + islandAABBs[0].maxX) / 2, 1.6, islandAABBs[0].minZ - 1)
-      : new THREE.Vector3(cx, 1.6, cz);
-    const walkCut = { pos: walkTarget, look: new THREE.Vector3(cx, 1.6, cz + 2) };
-    return [overview, entranceCut, walkCut];
-  }
-  function applyCameraTour(cuts, elapsed) {
-    const cutDur = 4; // seconds per cut
-    const total = cutDur * cuts.length;
-    const t = elapsed % total;
-    const idx = Math.min(cuts.length - 1, Math.floor(t / cutDur));
-    const nextIdx = Math.min(cuts.length - 1, idx + 1);
-    const localT = (t - idx * cutDur) / cutDur;
-    const a = cuts[idx], b = cuts[nextIdx];
-    camera.position.lerpVectors(a.pos, b.pos, localT);
-    const look = new THREE.Vector3().lerpVectors(a.look, b.look, localT);
-    camera.lookAt(look);
   }
 
   const view = {
@@ -814,6 +1005,10 @@ export function createView3D(container, opts = {}) {
     },
     recordVideo,
     resize() { doResize(); },
+    startTour() { startTourInternal(); },
+    stopTour() { state.tour.active = false; },
+    isTouring() { return state.tour.active; },
+    toggleFullscreen,
     dispose() {
       state.disposed = true;
       if (resizeObserver) resizeObserver.disconnect();
@@ -822,6 +1017,7 @@ export function createView3D(container, opts = {}) {
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('touchstart', handleTouchStart);
       renderer.domElement.removeEventListener('touchmove', handleTouchMove);
@@ -830,6 +1026,8 @@ export function createView3D(container, opts = {}) {
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       if (stickBase && stickBase.parentNode) stickBase.parentNode.removeChild(stickBase);
+      if (forwardBtn && forwardBtn.parentNode) forwardBtn.parentNode.removeChild(forwardBtn);
+      if (minimapCanvas && minimapCanvas.parentNode) minimapCanvas.parentNode.removeChild(minimapCanvas);
     },
   };
 
