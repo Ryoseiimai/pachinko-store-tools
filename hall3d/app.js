@@ -90,8 +90,9 @@ function renderSummary(res){
 
 async function runSimulation(){
   const layout = editor.getLayout();
+  const dayParams = readDayParams();
   const t0 = performance.now();
-  const res = simulate({ layout, machines: MACHINES, dayParams: readDayParams() });
+  const res = simulate({ layout, machines: MACHINES, dayParams });
   const t1 = performance.now();
   lastResult = res;
   renderSummary(res);
@@ -100,7 +101,7 @@ async function runSimulation(){
   if (view3d) {
     view3d.setLayout(layout);
     view3d.setDecor(layout.decor);
-    view3d.setResult(res);
+    view3d.setResult(res, { openHour: dayParams.openHour });
   }
 }
 

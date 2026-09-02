@@ -72,6 +72,7 @@ export function createView3D(container, opts = {}) {
     playSpeed: 1,
     mode: 'orbit',
     disposed: false,
+    openHour: 10, // simResult.timelineのtは開店からの相対分。HUD表示用に絶対時刻へ変換する基準
   };
 
   const machineById = new Map();
@@ -81,6 +82,9 @@ export function createView3D(container, opts = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
+  // 一人称視点は光量不足だと真っ暗に見えるため、フィルム的トーンマッピング+露出強めで底上げする
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.5;
   container.appendChild(renderer.domElement);
   renderer.domElement.style.width = '100%';
   renderer.domElement.style.height = '100%';
@@ -97,14 +101,18 @@ export function createView3D(container, opts = {}) {
   orbit.target.set(0, 0, 0);
   orbit.enableDamping = true;
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+  // 環境光を強めにベース確保し、lightingごとの係数で上乗せする(暗すぎ対策)
+  const ambient = new THREE.AmbientLight(0xffffff, 0.9);
   scene.add(ambient);
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x333333, 0.4);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x555566, 0.7);
   scene.add(hemi);
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
   dirLight.position.set(20, 30, 10);
   dirLight.castShadow = true;
   scene.add(dirLight);
+  // 一人称でプレイヤーの周囲を確実に照らす追従ライト(店内灯だけでは死角が暗くなるため)
+  const playerLight = new THREE.PointLight(0xfff2dd, 0.9, 14, 2);
+  scene.add(playerLight);
 
   const worldGroup = new THREE.Group();
   scene.add(worldGroup);
@@ -113,7 +121,8 @@ export function createView3D(container, opts = {}) {
   const islandsGroup = new THREE.Group();
   const decorGroup = new THREE.Group();
   const customersGroup = new THREE.Group();
-  worldGroup.add(floorGroup, wallsGroup, islandsGroup, decorGroup, customersGroup);
+  const ceilingLightsGroup = new THREE.Group();
+  worldGroup.add(floorGroup, wallsGroup, islandsGroup, decorGroup, customersGroup, ceilingLightsGroup);
 
   const slotMeshIndex = new Map(); // key "islandId:i" -> {screenMat, group}
   const islandAABBs = []; // {minX,maxX,minZ,maxZ}
@@ -167,8 +176,10 @@ export function createView3D(container, opts = {}) {
   }
 
   function minutesToClock(t) {
-    const h = Math.floor(t / 60);
-    const m = Math.floor(t % 60);
+    // t はsimResult.timeline上の開店からの相対分。openHourを足して実時刻表示にする。
+    const abs = (state.openHour * 60) + t;
+    const h = Math.floor(abs / 60);
+    const m = Math.floor(abs % 60);
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   }
 
@@ -255,19 +266,23 @@ export function createView3D(container, opts = {}) {
       wallsGroup.add(mesh);
     });
 
-    // lighting per decor.lighting
+    // lighting per decor.lighting (台の液晶・機種名が一人称でも視認できる明るさを底上げ)
     const lightingMap = {
-      bright: { color: 0xffffff, intensity: 1.0 },
-      warm: { color: 0xffd9a0, intensity: 0.8 },
-      dim: { color: 0x8899cc, intensity: 0.35 },
+      bright: { color: 0xffffff, intensity: 1.3, ambientMul: 1.0 },
+      warm: { color: 0xffd9a0, intensity: 1.05, ambientMul: 0.85 },
+      dim: { color: 0x8899cc, intensity: 0.6, ambientMul: 0.6 },
     };
     const lp = lightingMap[decor.lighting] || lightingMap.bright;
     dirLight.color.setHex(lp.color);
     dirLight.intensity = lp.intensity;
-    ambient.intensity = lp.intensity * 0.5;
-    scene.background.setHex(decor.lighting === 'dim' ? 0x08080c : 0x14141c);
+    ambient.color.setHex(lp.color);
+    ambient.intensity = 0.9 * lp.ambientMul;
+    hemi.intensity = 0.7 * lp.ambientMul;
+    playerLight.intensity = 0.9 * lp.ambientMul;
+    scene.background.setHex(decor.lighting === 'dim' ? 0x14141a : 0x1c1c26);
 
-    // ceiling lights
+    // ceiling lights（視覚上の発光パネル＋実際に床面を照らす点光源）
+    clearGroup(ceilingLightsGroup);
     const ceilLightMat = new THREE.MeshStandardMaterial({ color: lp.color, emissive: lp.color, emissiveIntensity: lp.intensity });
     for (let x = 2; x < floorW; x += 4) {
       for (let z = 2; z < floorD; z += 4) {
@@ -275,6 +290,9 @@ export function createView3D(container, opts = {}) {
         const mesh = new THREE.Mesh(geo, ceilLightMat);
         mesh.position.set(x, wallH - 0.05, z);
         wallsGroup.add(mesh);
+        const point = new THREE.PointLight(lp.color, lp.intensity * 1.4, 7, 2);
+        point.position.set(x, wallH - 0.3, z);
+        ceilingLightsGroup.add(point);
       }
     }
   }
@@ -331,15 +349,24 @@ export function createView3D(container, opts = {}) {
         cabinet.castShadow = true;
         group.add(cabinet);
 
+        const machine = slot.machineId ? machineById.get(slot.machineId) : null;
+
+        // 貸玉種別の帯(4円=赤/1円=青/20円=黄/5円=緑)。台の識別性を上げるための帯なので数値は出さない。
+        const rateColorMap = { 4: 0xd63b3b, 1: 0x2f6fd6, 20: 0xd6b52f, 5: 0x3fae5a };
+        const rateColor = machine ? (rateColorMap[machine.rate] || 0x888888) : 0x3a3a42;
+        const rateBand = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.06, 0.52), new THREE.MeshStandardMaterial({ color: rateColor, emissive: rateColor, emissiveIntensity: 0.3 }));
+        rateBand.position.set(0, 1.02, 0);
+        group.add(rateBand);
+
         const screenMat = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x000000, emissiveIntensity: 0 });
         const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.4), screenMat);
         screen.position.set(0, 1.9, 0.26);
         group.add(screen);
 
-        const machine = slot.machineId ? machineById.get(slot.machineId) : null;
-        const label = makeTextSprite(machine ? machine.name : '空台', { fontSize: 40 });
-        label.position.set(0, 2.45, 0.2);
-        label.scale.set(0.9, 0.22, 1);
+        // 液晶上部に機種名+稼働状態を表示するテキストスプライト(近距離でも一人称で読める大きさ)
+        const label = makeTextSprite(machine ? machine.name : '空台', { fontSize: 46, w: 512, h: 160 });
+        label.position.set(0, 2.5, 0.22);
+        label.scale.set(1.1, 0.34, 1);
         group.add(label);
 
         const chair = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.4), chairMat);
@@ -353,9 +380,9 @@ export function createView3D(container, opts = {}) {
       // island end banner
       const banner = (layout.decor && layout.decor.banners || []).find(b => b.islandId === island.id);
       if (banner) {
-        const sprite = makeTextSprite(banner.text, { color: '#fff', bg: banner.color || 'rgba(200,30,30,0.8)' });
-        sprite.position.set(ix - 0.1, 2.0, iz + id / 2);
-        sprite.scale.set(1.0, 0.5, 1);
+        const sprite = makeTextSprite(banner.text, { color: '#fff', bg: banner.color || 'rgba(200,30,30,0.8)', fontSize: 52 });
+        sprite.position.set(ix - 0.1, 2.15, iz + id / 2);
+        sprite.scale.set(1.6, 0.4, 1);
         islandsGroup.add(sprite);
       }
     });
@@ -570,12 +597,20 @@ export function createView3D(container, opts = {}) {
   }
 
   function enterFPMode() {
+    const entrance = state.layout && state.layout.entrance && state.layout.entrance[0];
+    const ex = entrance ? entrance.x * GRID : 1;
+    const ez = entrance ? entrance.z * GRID : 1;
+    // 店内奥(フロア中心)へ向くyawを算出し、入口から1m内側に進んだ位置からスタートする
+    const dx = floorCX - ex, dz = floorCZ - ez;
+    const yaw = Math.atan2(dx, dz);
+    const inward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(1.0);
     fp.pos.set(
-      state.layout && state.layout.entrance && state.layout.entrance[0] ? state.layout.entrance[0].x * GRID : 1,
-      1.6,
-      state.layout && state.layout.entrance && state.layout.entrance[0] ? state.layout.entrance[0].z * GRID : 1
+      THREE.MathUtils.clamp(ex + inward.x, 0.3, floorW - 0.3),
+      1.5,
+      THREE.MathUtils.clamp(ez + inward.z, 0.3, floorD - 0.3)
     );
-    fp.yaw = Math.PI;
+    fp.yaw = yaw;
+    fp.pitch = -0.05;
     orbit.enabled = false;
     if (stickBase) stickBase.style.display = 'block';
   }
@@ -621,6 +656,7 @@ export function createView3D(container, opts = {}) {
     } else {
       orbit.update();
     }
+    playerLight.position.set(camera.position.x, camera.position.y + 0.5, camera.position.z);
 
     drawHud();
     positionHudInScreenSpace();
@@ -748,9 +784,12 @@ export function createView3D(container, opts = {}) {
       buildFloorAndWalls();
       buildDecorExtras();
     },
-    setResult(simResult) {
+    setResult(simResult, meta) {
       state.simResult = simResult;
       state.minuteIndex = 0;
+      // openHourはsimResult.dayParams.openHour / meta.openHour / layout.dayParams / 既定10 の優先順で解決
+      const oh = (meta && meta.openHour) ?? (simResult && simResult.dayParams && simResult.dayParams.openHour) ?? state.openHour ?? 10;
+      state.openHour = oh;
       syncScreens();
       syncCustomers();
     },
@@ -787,7 +826,7 @@ export function createView3D(container, opts = {}) {
       renderer.domElement.removeEventListener('touchstart', handleTouchStart);
       renderer.domElement.removeEventListener('touchmove', handleTouchMove);
       renderer.domElement.removeEventListener('touchend', handleTouchEnd);
-      clearGroup(floorGroup); clearGroup(wallsGroup); clearGroup(islandsGroup); clearGroup(decorGroup); clearGroup(customersGroup);
+      clearGroup(floorGroup); clearGroup(wallsGroup); clearGroup(islandsGroup); clearGroup(decorGroup); clearGroup(customersGroup); clearGroup(ceilingLightsGroup);
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       if (stickBase && stickBase.parentNode) stickBase.parentNode.removeChild(stickBase);
