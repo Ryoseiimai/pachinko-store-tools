@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AIホール 経営シミュレーター</title>
+<style>
+  :root{
+    --bg:#0c0c10; --panel:#17171d; --line:#2a2a33; --text:#f2f2f2;
+    --accent:#ff2d55; --accent2:#ffd60a; --sub:#9a9aa5;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans",sans-serif;}
+  h1{font-size:18px;margin:10px 12px 4px;letter-spacing:1px;}
+  .sub{font-size:11px;color:var(--sub);margin:0 12px 10px;}
+  .wrap{max-width:960px;margin:0 auto;padding-bottom:32px;}
+  .grid2{display:grid;grid-template-columns:1fr;gap:14px;padding:0 12px;}
+  @media(min-width:820px){ .grid2{grid-template-columns:1fr 1fr;} }
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;}
+  .panel h2{font-size:14px;margin:0 0 10px;color:var(--accent2);letter-spacing:.5px;}
+  .row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .row label{font-size:12.5px;width:150px;color:#c9c9d4;flex-shrink:0;line-height:1.3;}
+  .row input[type=range]{flex:1;accent-color:var(--accent);}
+  .row input[type=number]{
+    width:88px;background:#1f1f28;color:#fff;border:1px solid var(--line);
+    border-radius:6px;padding:6px 6px;font-size:13px;text-align:right;flex-shrink:0;
+  }
+  .row .unit{font-size:11px;color:var(--sub);width:26px;flex-shrink:0;}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;}
+  .stat{background:#1f1f28;border:1px solid var(--line);border-radius:8px;padding:8px 10px;}
+  .stat .label{font-size:11px;color:var(--sub);}
+  .stat .value{font-size:17px;font-weight:700;color:var(--accent2);word-break:break-all;}
+  .stat.wide{grid-column:1/-1;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  table th,table td{padding:6px 4px;border-bottom:1px solid var(--line);text-align:right;}
+  table th:first-child,table td:first-child{text-align:left;}
+  table th{color:var(--sub);font-weight:600;}
+  .plus{color:#5ce17a;}
+  .minus{color:var(--accent);}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
+  button{
+    font-size:13.5px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);
+    background:#1f1f28;color:var(--text);cursor:pointer;flex:1;min-width:100px;
+  }
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+  .scenarios{display:grid;grid-template-columns:1fr;gap:8px;}
+  @media(min-width:560px){ .scenarios{grid-template-columns:1fr 1fr 1fr;} }
+  .scenario-card{background:#1f1f28;border:1px solid var(--line);border-radius:8px;padding:10px;}
+  .scenario-card h3{margin:0 0 6px;font-size:13px;}
+  .scenario-card .row2{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;color:#c9c9d4;}
+  .scenario-card .row2 b{color:var(--accent2);}
+  .foot-note{font-size:11px;color:#7c7c88;text-align:center;padding:16px 14px 4px;line-height:1.6;}
+  .foot-note b{color:#c9c9d4;}
+  .divider{border:none;border-top:1px solid var(--line);margin:12px 0;}
+  .weekday-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:10px;}
+  .weekday-grid div{text-align:center;}
+  .weekday-grid label{font-size:10px;color:var(--sub);display:block;margin-bottom:2px;width:auto;}
+  .weekday-grid input{width:100%;background:#1f1f28;color:#fff;border:1px solid var(--line);border-radius:5px;padding:5px 2px;font-size:11px;text-align:center;}
+  .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--accent2);
+    color:#111;padding:8px 16px;border-radius:20px;font-size:12.5px;font-weight:700;
+    opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AIホール 経営シミュレーター</h1>
+  <p class="sub">店舗経営の試算専用ツールです。出玉・設定・還元率に関する数値は一切扱いません。</p>
+
+  <div class="grid2">
+    <!-- 左カラム: 入力 -->
+    <div>
+      <div class="panel">
+        <h2>台数・料金構成</h2>
+        <div class="row">
+          <label>パチンコ台数</label>
+          <input type="range" id="pachiCount" min="0" max="500" value="150">
+          <input type="number" id="pachiCountNum" min="0" max="2000" value="150">
+          <span class="unit">台</span>
+        </div>
+        <div class="row">
+          <label>スロット台数</label>
+          <input type="range" id="slotCount" min="0" max="500" value="100">
+          <input type="number" id="slotCountNum" min="0" max="2000" value="100">
+          <span class="unit">台</span>
+        </div>
+        <div class="row">
+          <label>パチンコ 4円比率</label>
+          <input type="range" id="pachi4Ratio" min="0" max="100" value="70">
+          <input type="number" id="pachi4RatioNum" min="0" max="100" value="70">
+          <span class="unit">%</span>
+        </div>
+        <div class="row">
+          <label>スロット 20円比率</label>
+          <input type="range" id="slot20Ratio" min="0" max="100" value="60">
+          <input type="number" id="slot20RatioNum" min="0" max="100" value="60">
+          <span class="unit">%</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>稼働・売上前提</h2>
+        <div class="row">
+          <label>営業日数/月</label>
+          <input type="range" id="opDays" min="20" max="31" value="27">
+          <input type="number" id="opDaysNum" min="1" max="31" value="27">
+          <span class="unit">日</span>
+        </div>
+        <div class="row">
+          <label>平均稼働率</label>
+          <input type="range" id="utilRate" min="0" max="100" value="55">
+          <input type="number" id="utilRateNum" min="0" max="100" value="55">
+          <span class="unit">%</span>
+        </div>
+        <div class="row">
+          <label>粗利率</label>
+          <input type="range" id="marginRate" min="1" max="40" value="15">
+          <input type="number" id="marginRateNum" min="1" max="40" value="15">
+          <span class="unit">%</span>
+        </div>
+        <hr class="divider">
+        <div class="row">
+          <label>1台1日売上 4円パチ</label>
+          <input type="number" id="salesP4" value="25000">
+          <span class="unit">円</span>
+        </div>
+        <div class="row">
+          <label>1台1日売上 1円パチ</label>
+          <input type="number" id="salesP1" value="8000">
+          <span class="unit">円</span>
+        </div>
+        <div class="row">
+          <label>1台1日売上 20円スロ</label>
+          <input type="number" id="salesS20" value="30000">
+          <span class="unit">円</span>
+        </div>
+        <div class="row">
+          <label>1台1日売上 5円スロ</label>
+          <input type="number" id="salesS5" value="9000">
+          <span class="unit">円</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>固定費（月額）</h2>
+        <div class="row"><label>家賃</label><input type="number" id="fixRent" value="1500000"><span class="unit">円</span></div>
+        <div class="row"><label>人件費</label><input type="number" id="fixLabor" value="3500000"><span class="unit">円</span></div>
+        <div class="row"><label>光熱費</label><input type="number" id="fixUtil" value="1800000"><span class="unit">円</span></div>
+        <div class="row"><label>広告費</label><input type="number" id="fixAd" value="500000"><span class="unit">円</span></div>
+        <div class="row"><label>機械入替費</label><input type="number" id="fixMachine" value="2000000"><span class="unit">円</span></div>
+      </div>
+
+      <div class="panel">
+        <h2>モンテカルロ用: 曜日係数・イベント</h2>
+        <div class="weekday-grid">
+          <div><label>月</label><input type="number" step="0.05" id="wdMon" value="0.9"></div>
+          <div><label>火</label><input type="number" step="0.05" id="wdTue" value="0.85"></div>
+          <div><label>水</label><input type="number" step="0.05" id="wdWed" value="0.9"></div>
+          <div><label>木</label><input type="number" step="0.05" id="wdThu" value="0.9"></div>
+          <div><label>金</label><input type="number" step="0.05" id="wdFri" value="1.05"></div>
+          <div><label>土</label><input type="number" step="0.05" id="wdSat" value="1.3"></div>
+          <div><label>日</label><input type="number" step="0.05" id="wdSun" value="1.25"></div>
+        </div>
+        <div class="row">
+          <label>月内イベント日数</label>
+          <input type="range" id="eventDays" min="0" max="10" value="2">
+          <input type="number" id="eventDaysNum" min="0" max="31" value="2">
+          <span class="unit">日</span>
+        </div>
+        <div class="row">
+          <label>イベント日ブースト</label>
+          <input type="range" id="eventBoost" min="100" max="200" value="140">
+          <input type="number" id="eventBoostNum" min="100" max="300" value="140">
+          <span class="unit">%</span>
+        </div>
+        <div class="row">
+          <label>日次変動幅</label>
+          <input type="range" id="dailyNoise" min="0" max="50" value="15">
+          <input type="number" id="dailyNoiseNum" min="0" max="100" value="15">
+          <span class="unit">%</span>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button class="primary" id="btnShare">共有URLを作成</button>
+        <button id="btnReset">初期値に戻す</button>
+      </div>
+    </div>
+
+    <!-- 右カラム: 出力 -->
+    <div>
+      <div class="panel">
+        <h2>日次サマリー</h2>
+        <div class="stats">
+          <div class="stat"><div class="label">日次売上</div><div class="value" id="outDaySales">-</div></div>
+          <div class="stat"><div class="label">日次粗利</div><div class="value" id="outDayGross">-</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>月次・年次サマリー</h2>
+        <div class="stats">
+          <div class="stat"><div class="label">月次売上</div><div class="value" id="outMonSales">-</div></div>
+          <div class="stat"><div class="label">月次粗利</div><div class="value" id="outMonGross">-</div></div>
+          <div class="stat"><div class="label">月次固定費</div><div class="value" id="outMonFixed">-</div></div>
+          <div class="stat"><div class="label">月次営業利益</div><div class="value" id="outMonProfit">-</div></div>
+          <div class="stat"><div class="label">年次営業利益</div><div class="value" id="outYearProfit">-</div></div>
+          <div class="stat"><div class="label">損益分岐稼働率</div><div class="value" id="outBEUtil">-</div></div>
+          <div class="stat wide"><div class="label">台1台あたり月間粗利</div><div class="value" id="outPerMachine">-</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>稼働率 感度分析（月次営業利益）</h2>
+        <table>
+          <thead><tr><th>稼働率</th><th>月次営業利益</th><th>基準差</th></tr></thead>
+          <tbody id="sensBody"></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>シナリオ比較</h2>
+        <div class="scenarios" id="scenarioBox"></div>
+      </div>
+
+      <div class="panel">
+        <h2>モンテカルロ簡易試算（月次営業利益・100回試行）</h2>
+        <div class="stats">
+          <div class="stat"><div class="label">最小</div><div class="value" id="mcMin">-</div></div>
+          <div class="stat"><div class="label">中央値</div><div class="value" id="mcMed">-</div></div>
+          <div class="stat"><div class="label">最大</div><div class="value" id="mcMax">-</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot-note">
+    <b>免責注記:</b> 本ツールは経営数値の試算用です。出玉・設定・還元率に関する情報は一切扱いません。<br>
+    入力値はブラウザのlocalStorageに自動保存され、「共有URLを作成」でURLにも埋め込めます。
+  </div>
+</div>
+
+<div class="toast" id="toast">URLをコピーしました</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- 対象となる入力ID一覧（永続化・URL共有の対象） ----
+  const FIELD_IDS = [
+    "pachiCount","slotCount","pachi4Ratio","slot20Ratio",
+    "opDays","utilRate","marginRate",
+    "salesP4","salesP1","salesS20","salesS5",
+    "fixRent","fixLabor","fixUtil","fixAd","fixMachine",
+    "wdMon","wdTue","wdWed","wdThu","wdFri","wdSat","wdSun",
+    "eventDays","eventBoost","dailyNoise"
+  ];
+  // range/number が対になっているペア（片方を動かしたらもう片方に反映）
+  const PAIRS = [
+    ["pachiCount","pachiCountNum"],["slotCount","slotCountNum"],
+    ["pachi4Ratio","pachi4RatioNum"],["slot20Ratio","slot20RatioNum"],
+    ["opDays","opDaysNum"],["utilRate","utilRateNum"],["marginRate","marginRateNum"],
+    ["eventDays","eventDaysNum"],["eventBoost","eventBoostNum"],["dailyNoise","dailyNoiseNum"]
+  ];
+  const DEFAULTS = {}; // 初期値バックアップ（初期値に戻すボタン用）
+  FIELD_IDS.forEach(id=>{ DEFAULTS[id] = document.getElementById(id).value; });
+
+  const fmtYen = n => (Math.round(n)).toLocaleString("ja-JP") + "円";
+  const fmtYenSigned = n => (n>=0? "+":"") + Math.round(n).toLocaleString("ja-JP") + "円";
+  const fmtPct = n => n.toFixed(1) + "%";
+
+  function getVal(id){ return parseFloat(document.getElementById(id).value) || 0; }
+
+  // ---- コア計算ロジック ----
+  // 1台1日あたりの「稼働率100%換算」売上を、台種別カテゴリごとに求め、
+  // それに実際の稼働率をかけて日次売上を算出する。
+  function computeDaySales(util){
+    const pachiCount = getVal("pachiCount");
+    const slotCount = getVal("slotCount");
+    const pachi4Ratio = getVal("pachi4Ratio")/100;
+    const slot20Ratio = getVal("slot20Ratio")/100;
+    const salesP4 = getVal("salesP4"), salesP1 = getVal("salesP1");
+    const salesS20 = getVal("salesS20"), salesS5 = getVal("salesS5");
+
+    const cntP4 = pachiCount * pachi4Ratio;
+    const cntP1 = pachiCount * (1-pachi4Ratio);
+    const cntS20 = slotCount * slot20Ratio;
+    const cntS5 = slotCount * (1-slot20Ratio);
+
+    // 稼働率100%時点の日次売上ポテンシャル
+    const potential = cntP4*salesP4 + cntP1*salesP1 + cntS20*salesS20 + cntS5*salesS5;
+    return potential * (util/100);
+  }
+
+  // 稼働率100%あたりの日次売上ポテンシャル（損益分岐計算に使う）
+  function computeDaySalesPotential(){
+    return computeDaySales(100);
+  }
+
+  function computeFixedMonthly(){
+    return getVal("fixRent")+getVal("fixLabor")+getVal("fixUtil")+getVal("fixAd")+getVal("fixMachine");
+  }
+
+  function computeMonthly(util, opDaysOverride, marginOverride){
+    const opDays = opDaysOverride!=null? opDaysOverride : getVal("opDays");
+    const margin = (marginOverride!=null? marginOverride : getVal("marginRate"))/100;
+    const daySales = computeDaySales(util);
+    const monSales = daySales * opDays;
+    const monGross = monSales * margin;
+    const fixed = computeFixedMonthly();
+    const profit = monGross - fixed;
+    return {daySales, monSales, monGross, fixed, profit};
+  }
+
+  // 損益分岐となる稼働率: 月次粗利 = 固定費 になる稼働率
+  // monGross = potential*(util/100)*opDays*margin = fixed
+  // util = fixed / (potential*opDays*margin) * 100
+  function computeBreakEvenUtil(){
+    const potential = computeDaySalesPotential();
+    const opDays = getVal("opDays");
+    const margin = getVal("marginRate")/100;
+    const fixed = computeFixedMonthly();
+    if(potential<=0 || opDays<=0 || margin<=0) return null;
+    return fixed / (potential*opDays*margin) * 100;
+  }
+
+  function totalMachines(){
+    return getVal("pachiCount")+getVal("slotCount");
+  }
+
+  // ---- モンテカルロ簡易試算 ----
+  // 曜日係数×イベント日ブーストを適用しつつ、日ごとにランダムノイズを乗せて
+  // opDays日分を積み上げ、月次売上→粗利→営業利益を100試行分計算する。
+  function runMonteCarlo(){
+    const opDays = getVal("opDays");
+    const util = getVal("utilRate");
+    const margin = getVal("marginRate")/100;
+    const fixed = computeFixedMonthly();
+    const potential = computeDaySalesPotential(); // 稼働率100%時点の日次ポテンシャル
+    const baseDaySales = potential * (util/100);
+    const wd = [getVal("wdMon"),getVal("wdTue"),getVal("wdWed"),getVal("wdThu"),getVal("wdFri"),getVal("wdSat"),getVal("wdSun")];
+    const eventDays = Math.min(getVal("eventDays"), opDays);
+    const eventBoost = getVal("eventBoost")/100;
+    const noise = getVal("dailyNoise")/100;
+
+    const TRIALS = 100;
+    const results = [];
+    for(let t=0;t<TRIALS;t++){
+      let monSales = 0;
+      for(let d=0; d<opDays; d++){
+        let coef = wd[d % 7];
+        if(d < eventDays) coef *= eventBoost; // 先頭からeventDays日分をイベント日として扱う簡易割当
+        const rand = 1 + (Math.random()*2-1)*noise;
+        monSales += baseDaySales * coef * rand;
+      }
+      const monGross = monSales * margin;
+      const profit = monGross - fixed;
+      results.push(profit);
+    }
+    results.sort((a,b)=>a-b);
+    return {
+      min: results[0],
+      med: results[Math.floor(TRIALS/2)],
+      max: results[TRIALS-1]
+    };
+  }
+
+  // ---- 描画 ----
+  function render(){
+    const util = getVal("utilRate");
+    const m = computeMonthly(util);
+
+    document.getElementById("outDaySales").textContent = fmtYen(m.daySales);
+    document.getElementById("outDayGross").textContent = fmtYen(m.daySales * getVal("marginRate")/100);
+    document.getElementById("outMonSales").textContent = fmtYen(m.monSales);
+    document.getElementById("outMonGross").textContent = fmtYen(m.monGross);
+    document.getElementById("outMonFixed").textContent = fmtYen(m.fixed);
+    const profitEl = document.getElementById("outMonProfit");
+    profitEl.textContent = fmtYen(m.profit);
+    profitEl.style.color = m.profit>=0 ? "#5ce17a" : "var(--accent)";
+    const yearProfitEl = document.getElementById("outYearProfit");
+    yearProfitEl.textContent = fmtYen(m.profit*12);
+    yearProfitEl.style.color = m.profit>=0 ? "#5ce17a" : "var(--accent)";
+
+    const be = computeBreakEvenUtil();
+    document.getElementById("outBEUtil").textContent = be==null? "算出不可" : fmtPct(be);
+
+    const tm = totalMachines();
+    document.getElementById("outPerMachine").textContent = tm>0 ? fmtYen(m.monGross/tm) : "-";
+
+    // 感度分析: 稼働率を-15%〜+15%まで5%刻み
+    const sensBody = document.getElementById("sensBody");
+    sensBody.innerHTML = "";
+    const baseProfit = m.profit;
+    for(let delta=-15; delta<=15; delta+=5){
+      const u = Math.max(0, Math.min(100, util+delta));
+      const mm = computeMonthly(u);
+      const diff = mm.profit - baseProfit;
+      const tr = document.createElement("tr");
+      const tag = delta===0 ? "（基準）" : (delta>0? "+":"") + delta + "%";
+      tr.innerHTML = `<td>${fmtPct(u)} ${tag}</td><td>${fmtYen(mm.profit)}</td>
+        <td class="${diff>=0?'plus':'minus'}">${delta===0?'-':fmtYenSigned(diff)}</td>`;
+      sensBody.appendChild(tr);
+    }
+
+    // シナリオ比較: 弱気/標準/強気（稼働率と粗利率を上下させる）
+    const scenarios = [
+      {name:"弱気", utilMul:0.85, marginMul:0.9},
+      {name:"標準", utilMul:1.0, marginMul:1.0},
+      {name:"強気", utilMul:1.15, marginMul:1.1}
+    ];
+    const box = document.getElementById("scenarioBox");
+    box.innerHTML = "";
+    scenarios.forEach(sc=>{
+      const u = Math.max(0, Math.min(100, util*sc.utilMul));
+      const margin = getVal("marginRate")*sc.marginMul;
+      const mm = computeMonthly(u, null, margin);
+      const card = document.createElement("div");
+      card.className = "scenario-card";
+      card.innerHTML = `
+        <h3>${sc.name}シナリオ</h3>
+        <div class="row2"><span>稼働率</span><b>${fmtPct(u)}</b></div>
+        <div class="row2"><span>粗利率</span><b>${fmtPct(margin)}</b></div>
+        <div class="row2"><span>月次売上</span><b>${fmtYen(mm.monSales)}</b></div>
+        <div class="row2"><span>月次利益</span><b style="color:${mm.profit>=0?'#5ce17a':'var(--accent)'}">${fmtYen(mm.profit)}</b></div>
+      `;
+      box.appendChild(card);
+    });
+
+    // モンテカルロ
+    const mc = runMonteCarlo();
+    document.getElementById("mcMin").textContent = fmtYen(mc.min);
+    document.getElementById("mcMed").textContent = fmtYen(mc.med);
+    document.getElementById("mcMax").textContent = fmtYen(mc.max);
+
+    saveToLocalStorage();
+  }
+
+  // ---- 入力同期（range⇔number）----
+  PAIRS.forEach(([rangeId,numId])=>{
+    const r = document.getElementById(rangeId), n = document.getElementById(numId);
+    r.addEventListener("input", ()=>{ n.value = r.value; render(); });
+    n.addEventListener("input", ()=>{
+      let v = parseFloat(n.value);
+      if(isNaN(v)) return;
+      if(r.min!=="" && v < parseFloat(r.min)) v = parseFloat(r.min);
+      if(r.max!=="" && v > parseFloat(r.max)) v = parseFloat(r.max);
+      r.value = v;
+      render();
+    });
+  });
+  // number単独項目（金額系）
+  FIELD_IDS.filter(id => !PAIRS.some(p=>p[0]===id||p[1]===id)).forEach(id=>{
+    document.getElementById(id).addEventListener("input", render);
+  });
+
+  // ---- 永続化: localStorage ----
+  const LS_KEY = "keiei_sim_params_v1";
+  function saveToLocalStorage(){
+    const data = {};
+    FIELD_IDS.forEach(id=>{ data[id] = document.getElementById(id).value; });
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(data)); }catch(e){}
+  }
+  function loadFromLocalStorage(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      if(!raw) return false;
+      const data = JSON.parse(raw);
+      FIELD_IDS.forEach(id=>{ if(data[id]!==undefined) document.getElementById(id).value = data[id]; });
+      // range/numberペアの相互反映
+      PAIRS.forEach(([rangeId,numId])=>{
+        document.getElementById(numId).value = document.getElementById(rangeId).value;
+      });
+      return true;
+    }catch(e){ return false; }
+  }
+
+  // ---- 共有URL（ハッシュにパラメータ埋め込み）----
+  function loadFromHash(){
+    if(!location.hash || location.hash.length<2) return false;
+    try{
+      const params = new URLSearchParams(location.hash.slice(1));
+      let applied = false;
+      FIELD_IDS.forEach(id=>{
+        if(params.has(id)){ document.getElementById(id).value = params.get(id); applied = true; }
+      });
+      PAIRS.forEach(([rangeId,numId])=>{
+        document.getElementById(numId).value = document.getElementById(rangeId).value;
+      });
+      return applied;
+    }catch(e){ return false; }
+  }
+  function buildShareUrl(){
+    const params = new URLSearchParams();
+    FIELD_IDS.forEach(id=>{ params.set(id, document.getElementById(id).value); });
+    return location.origin + location.pathname + "#" + params.toString();
+  }
+  document.getElementById("btnShare").addEventListener("click", ()=>{
+    const url = buildShareUrl();
+    history.replaceState(null, "", url);
+    const toast = document.getElementById("toast");
+    const showToast = msg => {
+      toast.textContent = msg;
+      toast.classList.add("show");
+      setTimeout(()=>toast.classList.remove("show"), 1800);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(()=>showToast("URLをコピーしました"))
+        .catch(()=>showToast("URLを生成しました（アドレスバー参照）"));
+    }else{
+      showToast("URLを生成しました（アドレスバー参照）");
+    }
+  });
+  document.getElementById("btnReset").addEventListener("click", ()=>{
+    FIELD_IDS.forEach(id=>{ document.getElementById(id).value = DEFAULTS[id]; });
+    PAIRS.forEach(([rangeId,numId])=>{
+      document.getElementById(numId).value = document.getElementById(rangeId).value;
+    });
+    render();
+  });
+
+  // ---- 初期化: URLハッシュ > localStorage > デフォルトの優先順で読み込む ----
+  if(!loadFromHash()){
+    loadFromLocalStorage();
+  }
+  render();
+})();
+</script>
+</body>
+</html>

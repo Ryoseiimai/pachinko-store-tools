@@ -1,0 +1,240 @@
+{
+  "meta": {
+    "compiled_at": "2026-09-02",
+    "note": "各項目に source_url と year を付す。不明な項目は null（推定値と混在させない）。",
+    "sources_used": [
+      "https://web-greenbelt.jp/post-115721/",
+      "https://www.goraku-sangyo.com/%E3%83%AC%E3%82%B8%E3%83%A3%E3%83%BC%E7%99%BD%E6%9B%B82025%E3%80%8010%E6%9C%8831%E6%97%A5%E7%99%BA%E5%A3%B2%E3%83%BB%E3%83%91%E3%83%81%E3%83%B3%E3%82%B3%E5%8F%82%E5%8A%A0%E4%BA%BA%E5%8F%A3%E3%81%AF690/",
+      "https://amusement-japan.co.jp/article/detail/10004947/",
+      "https://news.p-world.co.jp/articles/31551/nippon",
+      "https://www.nichiyukyo.or.jp/info/25283/",
+      "https://www.nichiyukyo.or.jp/info/25589/",
+      "https://amusement-japan.co.jp/article/detail/10005046/",
+      "https://amusement-japan.co.jp/article/detail/10004806/",
+      "https://www.zennichiyuren.or.jp/material/report/8.html",
+      "https://www.wigo.tokyo/news/2025/569/",
+      "https://crexgroup.com/ja/data/market-data/pachinko-market-size-trends/",
+      "https://gamblego.jp/market/734/",
+      "https://pachimaga.com/free/article/20250307/056237.php",
+      "https://news.yahoo.co.jp/expert/articles/e6bf6d73ef2eb407d348bc2c26e01073449837ff",
+      "https://honkawa2.sakura.ne.jp/5672.html",
+      "https://p-town.dmm.com/specials/news/9087"
+    ]
+  },
+
+  "1_player_population_leisure_white_paper": {
+    "description": "レジャー白書（日本生産性本部）ベースの遊技参加人口・活動回数・費用",
+    "participation_population_2025": {
+      "value_man_nin": 690,
+      "unit": "万人",
+      "note": "前年比30万人増",
+      "year": 2025,
+      "source_url": "https://www.goraku-sangyo.com/%E3%83%AC%E3%82%B8%E3%83%A3%E3%83%BC%E7%99%BD%E6%9B%B82025%E3%80%8010%E6%9C%8831%E6%97%A5%E7%99%BA%E5%A3%B2%E3%83%BB%E3%83%91%E3%83%81%E3%83%B3%E3%82%B3%E5%8F%82%E5%8A%A0%E4%BA%BA%E5%8F%A3%E3%81%AF690/"
+    },
+    "participation_rate_2025": {
+      "value_percent": 7.4,
+      "note": "レジャー白書2026速報版。前年比0.3ポイント上昇",
+      "year": 2025,
+      "source_url": "https://web-greenbelt.jp/post-115721/"
+    },
+    "annual_average_frequency_2025": {
+      "value_times_per_year": 25.5,
+      "note": "前年比5.5回減",
+      "year": 2025,
+      "source_url": "https://web-greenbelt.jp/post-115721/"
+    },
+    "annual_average_cost_2025": {
+      "value_yen": 93000,
+      "note": "前年比3,100円増",
+      "year": 2025,
+      "source_url": "https://web-greenbelt.jp/post-115721/"
+    },
+    "participation_intention_rate_2025": {
+      "value_percent": 5.0,
+      "note": "「今後行いたい」参加希望率。前年比0.4ポイント減",
+      "year": 2025,
+      "source_url": "https://web-greenbelt.jp/post-115721/"
+    },
+    "market_size_2025": {
+      "value_yen": "16.2兆円",
+      "note": "レジャー白書2025に基づく市場規模（パチンコ・パチスロ合計）",
+      "year": 2025,
+      "source_url": "https://www.goraku-sangyo.com/%E3%83%AC%E3%82%B8%E3%83%A3%E3%83%BC%E7%99%BD%E6%9B%B82025%E3%80%8010%E6%9C%8831%E6%97%A5%E7%99%BA%E5%A3%B2%E3%83%BB%E3%83%91%E3%83%81%E3%83%B3%E3%82%B3%E5%8F%82%E5%8A%A0%E4%BA%BA%E5%8F%A3%E3%81%AF690/"
+    }
+  },
+
+  "2_player_survey_nichiyukyo_sees": {
+    "description": "日遊協「パチンコプレイヤー調査2025」／シーズリサーチ「パチンコ・パチスロプレイヤー調査2025」",
+    "participation_population_sees_2025": {
+      "total_man_nin": 865,
+      "pachinko_man_nin": 778,
+      "pachislot_man_nin": 660,
+      "note": "パチンコ・パチスロ両方合わせた重複含む参加人口。パチンコ778万人(前年比+21万人)、パチスロ660万人(前年比+45万人)",
+      "year": 2025,
+      "source_url": "https://amusement-japan.co.jp/article/detail/10004947/"
+    },
+    "age_composition": {
+      "value": null,
+      "note": "日遊協調査本編（有料書籍）に詳細な年代別構成比が掲載されているが、無料公開記事からは具体的な構成比パーセンテージを取得できなかった。参考として下記の別調査（不破雷蔵氏、令和情報源データ）を別項目に記載。",
+      "year": null,
+      "source_url": "https://www.nichiyukyo.or.jp/info/25283/"
+    },
+    "gender_ratio_reference": {
+      "male_percent": 75.1,
+      "female_percent": 24.9,
+      "male_man_nin": 563.7,
+      "female_man_nin": 143.8,
+      "total_man_nin": 707.5,
+      "note": "Yahoo!ニュース エキスパート記事（不破雷蔵氏）。総務省統計局データ等をもとにした集計と見られ、日遊協調査そのものとは出典が異なる点に注意。年次は記事内で明示されず、直近公表値として扱う。",
+      "year": null,
+      "source_url": "https://news.yahoo.co.jp/expert/articles/e6bf6d73ef2eb407d348bc2c26e01073449837ff"
+    },
+    "age_composition_reference": {
+      "male_peak": "40代後半が最多、次いで30代後半、50代前半",
+      "female_peak": "50代前半が最多(15.2万人)、次いで30代後半、40代後半",
+      "note": "同じくYahoo!ニュース エキスパート記事より。日遊協公式データではなく参考値。",
+      "year": null,
+      "source_url": "https://news.yahoo.co.jp/expert/articles/e6bf6d73ef2eb407d348bc2c26e01073449837ff"
+    },
+    "visit_frequency_distribution_2025": {
+      "weekly_multiple_or_weekly_percent": 46.74,
+      "note": "「週に数回」または「週に1回程度」の合計が46.74%で最多。日遊協「パチンコプレイヤー調査2025」の一部データ（要約記事経由）。分布の全区分は取得できず。",
+      "year": 2025,
+      "source_url": "https://www.nichiyukyo.or.jp/info/25283/"
+    },
+    "average_spend_per_visit_distribution_2025": {
+      "3000_to_5000_yen_percent": 29.35,
+      "5000_to_10000_yen_percent": 23.91,
+      "note": "1回あたり平均使用額の分布。「3,000円以上5,000円未満」が最多29.35%、次いで「5,000円以上10,000円未満」23.91%。全区分の内訳は取得できず。",
+      "year": 2025,
+      "source_url": "https://www.nichiyukyo.or.jp/info/25283/"
+    },
+    "occupation_composition": {
+      "value": null,
+      "note": "無料公開の記事からは職業構成の数値を取得できなかった。日遊協・シーズリサーチの有料調査本編に掲載されている可能性が高い。",
+      "year": null,
+      "source_url": null
+    },
+    "average_play_time": {
+      "value": null,
+      "note": "1回あたり平均遊技時間の具体的数値は無料公開記事からは取得できなかった。",
+      "year": null,
+      "source_url": null
+    },
+    "visit_motivation": {
+      "value": null,
+      "note": "来店動機（新台・イベント日・暇つぶし等）の具体的構成比は無料公開記事からは取得できなかった。",
+      "year": null,
+      "source_url": null
+    },
+    "day_of_week_time_of_day_trends": {
+      "value": null,
+      "note": "曜日・時間帯別の来店傾向データは無料公開記事からは取得できなかった。",
+      "year": null,
+      "source_url": null
+    }
+  },
+
+  "3_store_side_stats": {
+    "description": "警察庁発表・全日遊連まとめによる店舗数・設置台数等",
+    "store_count_2024_end": {
+      "value": 6706,
+      "unit": "軒",
+      "note": "2024年12月末時点。前年比377軒(5.3%)減",
+      "year": 2024,
+      "source_url": "https://amusement-japan.co.jp/article/detail/10004806/"
+    },
+    "store_count_2025_end_reference": {
+      "value": 6464,
+      "unit": "店舗",
+      "note": "別記事による2025年末時点の速報的な数値。全日遊連公式発表との突合は未確認",
+      "year": 2025,
+      "source_url": "https://www.wigo.tokyo/news/2025/569/"
+    },
+    "pachinko_machine_count_2024": {
+      "value": 1969913,
+      "unit": "台",
+      "note": "2024年12月末時点。前年比107,728台(5.2%)減",
+      "year": 2024,
+      "source_url": "https://amusement-japan.co.jp/article/detail/10004806/"
+    },
+    "pachislot_machine_count_2024": {
+      "value": 1355839,
+      "unit": "台",
+      "note": "2024年12月末時点。前年比8,373台(0.6%)増",
+      "year": 2024,
+      "source_url": "https://amusement-japan.co.jp/article/detail/10004806/"
+    },
+    "average_machines_per_store_2024": {
+      "value": 496.0,
+      "unit": "台/店",
+      "note": "前年比12.4台(2.6%)増",
+      "year": 2024,
+      "source_url": "https://amusement-japan.co.jp/article/detail/10004806/"
+    },
+    "pachinko_vs_pachislot_ratio": {
+      "pachinko_machines": 1969913,
+      "pachislot_machines": 1355839,
+      "ratio_approx": "パチンコ約59% : パチスロ約41%（設置台数ベース、2024年末時点）",
+      "year": 2024,
+      "source_url": "https://amusement-japan.co.jp/article/detail/10004806/"
+    },
+    "small_store_decline_trend": {
+      "note": "300台以下の小型店は1年間で12.1%減少。店舗数全体の減少は鈍化傾向にあるものの、小型店の淘汰は進行中",
+      "year": 2025,
+      "source_url": "https://www.wigo.tokyo/news/2025/569/"
+    },
+    "lending_price_distribution_4yen_vs_1yen": {
+      "value": null,
+      "note": "4円パチンコ・1円パチンコ（低貸し）の店舗別・台数別の正確な比率データは、無料公開情報からは取得できなかった。定性情報として「4円パチンコが主な収益源、1円等の低貸しコーナーは来店しやすさのために併設」という記述はあるが、数値の裏付けなし。",
+      "year": null,
+      "source_url": "https://p-kaneman.co.jp/blog/9"
+    },
+    "industry_revenue_scale_2024": {
+      "total_sales_yen": "約16.2兆円",
+      "pachinko_sales_yen": "約7.7兆円",
+      "pachislot_sales_yen": "約8.5兆円",
+      "note": "2024年ホール業界の総売上（貸玉料ベース）",
+      "year": 2024,
+      "source_url": "https://crexgroup.com/ja/data/market-data/pachinko-market-size-trends/"
+    },
+    "gross_profit_margin_industry_general": {
+      "value_percent_range": "15〜17%",
+      "note": "業界で一般に言われる粗利率（回収率）の水準。粗利＝貸玉料収入から景品仕入額を差し引いた額。最終的な営業利益率とは異なり、そこから遊技機購入費・人件費・電気代・家賃等を差し引く必要がある。別ソースでは「16.1%」という具体数値、また上場ダイナム社は約20%で業界平均より高いとの記述あり。",
+      "year": null,
+      "source_url": "https://gamblego.jp/market/734/"
+    },
+    "gross_profit_margin_alt_source": {
+      "value_percent": 16.1,
+      "note": "遊技業界データブック掲載値として引用されている粗利率（回収率）",
+      "year": null,
+      "source_url": "https://gamblego.jp/market/734/"
+    },
+    "operating_profit_margin_note": {
+      "note": "パチマガスロマガFREEの記事では「パチンコホールは実は薄利で、営業利益率の平均は低い」との指摘があるが、具体的なパーセンテージは無料検索結果からは取得できなかった。",
+      "year": null,
+      "source_url": "https://pachimaga.com/free/article/20250307/056237.php"
+    },
+    "gross_profit_scale_industry": {
+      "value_yen_range": "約2.3兆〜2.4兆円",
+      "note": "業界全体の粗利ベース規模（推定として言及されている値。売上総額の15〜17%程度に相当）",
+      "year": null,
+      "source_url": "https://crexgroup.com/ja/data/market-data/pachinko-market-size-trends/"
+    }
+  },
+
+  "4_machine_out_and_customer_spend": {
+    "description": "台の平均稼働（アウト）や客単価の目安",
+    "average_out_per_machine": {
+      "value": null,
+      "note": "台あたりの平均アウト（発射玉数）の全国平均値は、無料公開情報からは具体的な数値を取得できなかった。店舗ごとの経営情報として個別コンサル記事はあるが業界全体平均の一次資料は未確認。",
+      "year": null,
+      "source_url": null
+    },
+    "customer_spend_per_visit_reference": {
+      "note": "3_2の average_spend_per_visit_distribution_2025 を参照（1回あたり3,000〜5,000円が最多29.35%）",
+      "year": 2025,
+      "source_url": "https://www.nichiyukyo.or.jp/info/25283/"
+    }
+  }
+}

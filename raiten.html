@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIホール 来店シミュレーター</title>
+<style>
+  :root{ --bg:#0c0c10; --panel:#17171d; --line:#2a2a33; --text:#f2f2f2; --accent:#ff2d55; --accent2:#ffd60a; --ok:#3ddc84; --sub:#9a9aa5; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans",sans-serif;font-size:16px;}
+  .wrap{max-width:480px;margin:0 auto;padding:10px 12px 40px;}
+  h1{font-size:18px;margin:6px 0 2px;}
+  .sub{font-size:12px;color:var(--sub);margin-bottom:10px;line-height:1.5;}
+  .disclaimer{background:#221a10;border:1px solid #4a3a10;border-radius:8px;padding:8px 10px;font-size:12px;color:#ffd6a0;margin-bottom:12px;line-height:1.5;}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px;}
+  .panel h2{font-size:14px;margin:0 0 10px;color:#e6e6ea;}
+  .row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
+  .row label{font-size:12px;color:#c9c9d4;}
+  select,input[type=text]{font-size:14px;padding:8px;border-radius:6px;border:1px solid var(--line);background:#1f1f28;color:var(--text);width:100%;}
+  input[type=range]{accent-color:var(--accent);width:100%;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .chiplist{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{font-size:12px;padding:8px 10px;border-radius:16px;border:1px solid var(--line);background:#1f1f28;color:#c9c9d4;cursor:pointer;user-select:none;}
+  .chip.on{background:var(--accent2);border-color:var(--accent2);color:#111;font-weight:700;}
+  button{font-size:14px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:#1f1f28;color:var(--text);cursor:pointer;width:100%;}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+  button.ghost{background:transparent;}
+  .stat{background:#1c1c24;border:1px solid var(--line);border-radius:8px;padding:8px 10px;}
+  .stat .label{font-size:11px;color:var(--sub);}
+  .stat .value{font-size:18px;font-weight:700;color:var(--accent2);}
+  .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
+  canvas{width:100%;background:#111116;border-radius:6px;border:1px solid var(--line);}
+  .peoplegrid{display:grid;grid-template-columns:1fr;gap:8px;}
+  .persona{background:#1c1c24;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px;line-height:1.6;}
+  .persona .pname{font-size:14px;font-weight:700;color:#fff;}
+  .persona .ptag{display:inline-block;font-size:10px;background:#2a2a33;color:#c9c9d4;border-radius:10px;padding:2px 8px;margin-right:4px;margin-top:4px;}
+  details{background:#1c1c24;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:12px;}
+  details summary{cursor:pointer;font-size:13px;color:#c9c9d4;}
+  details .body{font-size:12px;color:#b5b5c0;margin-top:8px;line-height:1.7;}
+  .sourcelist{font-size:11px;color:#7a7a86;line-height:1.8;word-break:break-all;}
+  .sourcelist a{color:#8ab4f8;}
+  .nodata{color:#66666f;font-style:italic;}
+  .footer{font-size:11px;color:#55555f;text-align:center;padding-top:10px;}
+  .peakbox{font-size:12px;color:#c9c9d4;margin-top:6px;}
+  .peakbox b{color:var(--accent2);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AIホール 来店シミュレーター</h1>
+  <div class="sub">立地・商圏・曜日・時間帯から、その日の来客数と客層をAIが試算します（架空店ツール）</div>
+  <div class="disclaimer">このシミュレーターは公的統計に基づく試算であり、実際の来店を保証するものではありません。</div>
+
+  <div class="panel">
+    <h2>入力条件</h2>
+    <div class="row">
+      <label>立地タイプ</label>
+      <select id="inLocation">
+        <option value="station">駅前</option>
+        <option value="road">ロードサイド</option>
+        <option value="suburb">郊外住宅地</option>
+        <option value="downtown">繁華街</option>
+      </select>
+    </div>
+    <div class="grid2">
+      <div class="row">
+        <label>商圏人口（人）</label>
+        <input type="text" inputmode="numeric" id="inPop" value="80000">
+      </div>
+      <div class="row">
+        <label>自店台数</label>
+        <input type="text" inputmode="numeric" id="inSeats" value="300">
+      </div>
+    </div>
+    <div class="row">
+      <label>競合店数（商圏内）</label>
+      <input type="text" inputmode="numeric" id="inRivals" value="3">
+    </div>
+    <div class="row">
+      <label>曜日</label>
+      <select id="inDow">
+        <option value="0">日曜</option>
+        <option value="1">月曜</option>
+        <option value="2">火曜</option>
+        <option value="3">水曜</option>
+        <option value="4">木曜</option>
+        <option value="5">金曜</option>
+        <option value="6" selected>土曜</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>ピークで見る時間帯: <span id="hourLabel">15時</span></label>
+      <input type="range" id="inHour" min="10" max="23" value="15">
+    </div>
+    <div class="row">
+      <label>イベント要素</label>
+      <div class="chiplist">
+        <div class="chip" data-ev="newmachine">新台入替日</div>
+        <div class="chip" data-ev="payday">給料日直後</div>
+        <div class="chip" data-ev="rain">雨天</div>
+        <div class="chip" data-ev="holiday">祝日</div>
+      </div>
+    </div>
+    <button class="primary" id="btnRun">試算する</button>
+  </div>
+
+  <div class="panel" id="resultA" style="display:none;">
+    <h2>今日の来客予測</h2>
+    <div class="statgrid">
+      <div class="stat"><div class="label">来客数（中央値）</div><div class="value" id="statMedian">-</div></div>
+      <div class="stat"><div class="label">予測レンジ</div><div class="value" id="statRange">-</div></div>
+    </div>
+    <div>時間帯別 在店人数</div>
+    <canvas id="chartHourly" width="440" height="180"></canvas>
+    <div class="peakbox">ピーク時間帯: <b id="peakHour">-</b></div>
+  </div>
+
+  <div class="panel" id="resultB" style="display:none;">
+    <h2>客層のペルソナ</h2>
+    <div class="sub" style="margin-bottom:8px;">統計比率に基づく加重抽選で、その日の来客を代表する6人を生成します</div>
+    <button class="ghost" id="btnShuffle">シャッフル（再生成）</button>
+    <div class="peoplegrid" id="personaList" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="panel" id="resultC" style="display:none;">
+    <h2>客層構成</h2>
+    <div>年代別</div>
+    <canvas id="chartAge" width="440" height="140"></canvas>
+    <div style="margin-top:10px;">男女比</div>
+    <canvas id="chartGender" width="440" height="100"></canvas>
+    <div style="margin-top:10px;">来店動機</div>
+    <canvas id="chartMotive" width="440" height="140"></canvas>
+  </div>
+
+  <details>
+    <summary>モデル説明（計算根拠）</summary>
+    <div class="body" id="modelExplain">
+来客数は以下の式で試算します。<br><br>
+来客数 = 商圏人口 × 遊技参加率(統計) × 日次来店確率(来店頻度の統計から逆算) × 立地係数 × 曜日係数 × イベント係数 ÷ (競合店数+1) × 自店シェア補正(自店台数 ÷ 商圏内平均的な1店舗あたり台数)<br><br>
+・参加率と来店頻度は「データ出典」欄の統計をそのまま使用し、統計が無い項目は既定値である旨を明記します。<br>
+・立地係数: 駅前1.15 / 繁華街1.25 / ロードサイド1.0 / 郊外住宅地0.85（駐車場の取りやすさ・動線人口の一般的傾向に基づく仮置き）。<br>
+・曜日係数: 土日祝1.2 / 金曜1.05 / 平日1.0（週末に外出行動が増える一般的傾向に基づく仮置き）。<br>
+・イベント係数: 新台入替日+15% / 給料日直後+10% / 雨天-10%（屋外娯楽の代替として微増と見る説もあるが本モデルでは保守的に減算） / 祝日+10%。各イベントは加算式で合成し重複時は上限+50%でクリップ。<br>
+・自店シェア補正: 商圏内の競合を含めた総台数のうち自店が占める比率を、単純に来客数へ乗算する簡易モデル（実際の集客力・立地優位性・広告投資などは考慮していません）。<br>
+・予測レンジは中央値に対し±15%を目安として表示します（実測データによる分散推定ではありません）。<br><br>
+係数はいずれも一般的な業界傾向からの仮置きであり、個別統計での裏付けがあるものは統計値を優先します。
+    </div>
+  </details>
+
+  <div class="panel">
+    <h2>データ出典</h2>
+    <div class="sourcelist" id="sourceList">読み込み中…</div>
+  </div>
+
+  <div class="footer">AIホール 来店シミュレーター / 統計に基づく試算ツールです。実在店舗の集客成績を示すものではありません。</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// =========================================================
+// 統計データ（別途 data/industry_stats.json をここに埋め込む予定。
+// 現時点では調査担当のデータが未着のため、全項目 null（データなし）で初期化。
+// データが揃い次第、このオブジェクトを実データで置き換える。
+// =========================================================
+const STATS = {
+  // レジャー白書2026速報版（前年比+0.3pt）。参加人口690万人/参加率7.4%。
+  participation_rate: 0.074,
+  source_participation_rate: "https://web-greenbelt.jp/post-115721/",
+
+  // 年代別構成比: 日遊協・シーズリサーチ本編（有料）にのみ掲載されており、
+  // 無料公開情報からは具体的な構成比パーセンテージを取得できなかったため「データなし」。
+  age_distribution: null,
+  age_distribution_note: "日遊協/シーズリサーチ調査本編（有料）に掲載の可能性があるが、無料公開記事からは構成比の数値を取得できず。参考として、男性は40代後半、女性は50代前半がボリュームゾーンという定性情報のみ確認（出典: news.yahoo.co.jp記事）。",
+
+  // 男女比: Yahoo!ニュース エキスパート記事（不破雷蔵氏、総務省統計局データ等ベース）。
+  // 日遊協調査そのものとは出典が異なる参考値。
+  gender_ratio: { "男性": 0.751, "女性": 0.249 },
+  source_gender_ratio: "https://news.yahoo.co.jp/expert/articles/e6bf6d73ef2eb407d348bc2c26e01073449837ff",
+
+  // 職業別構成比: 無料公開情報からは取得できず「データなし」。
+  occupation_distribution: null,
+
+  // 来店頻度: 日遊協「パチンコプレイヤー調査2025」の要約記事経由。
+  // 「週に数回」または「週に1回程度」の合計46.74%のみ判明し、全区分の内訳は未取得のため
+  // 完全な分布としては扱わず「データなし」とする（この数値単体はモデル説明欄に明記）。
+  visit_frequency: null,
+  visit_frequency_weekly_or_more_percent: 46.74,
+  source_visit_frequency: "https://www.nichiyukyo.or.jp/info/25283/",
+
+  // 来店動機: 無料公開情報からは取得できず「データなし」。
+  visit_motive: null,
+
+  // 1回あたり平均使用額の分布: 一部区分のみ判明（全区分の内訳は未取得）。
+  avg_spend_partial: { "3,000円以上5,000円未満": 0.2935, "5,000円以上10,000円未満": 0.2391 },
+  annual_average_cost_yen: 93000, // レジャー白書2025 年間平均費用
+  source_avg_spend: "https://www.nichiyukyo.or.jp/info/25283/",
+
+  sources: [
+    { label: "レジャー白書2026速報版（参加人口690万人・参加率7.4%等）", url: "https://web-greenbelt.jp/post-115721/" },
+    { label: "レジャー産業データ（参加人口690万人・前年比+30万人）", url: "https://www.goraku-sangyo.com/%E3%83%AC%E3%82%B8%E3%83%A3%E3%83%BC%E7%99%BD%E6%9B%B82025%E3%80%8010%E6%9C%8831%E6%97%A5%E7%99%BA%E5%A3%B2%E3%83%BB%E3%83%91%E3%83%81%E3%83%B3%E3%82%B3%E5%8F%82%E5%8A%A0%E4%BA%BA%E5%8F%A3%E3%81%AF690/" },
+    { label: "日遊協/シーズリサーチ プレイヤー調査2025（参加人口865万人）", url: "https://amusement-japan.co.jp/article/detail/10004947/" },
+    { label: "日遊協 プレイヤー調査2025 サマリー（来店頻度・使用額分布）", url: "https://www.nichiyukyo.or.jp/info/25283/" },
+    { label: "男女比・年代（不破雷蔵氏、Yahoo!ニュース エキスパート）", url: "https://news.yahoo.co.jp/expert/articles/e6bf6d73ef2eb407d348bc2c26e01073449837ff" },
+    { label: "全国店舗数・設置台数（2024年末、警察庁/全日遊連まとめ）", url: "https://amusement-japan.co.jp/article/detail/10004806/" },
+    { label: "業界粗利率の目安（15〜17%）", url: "https://gamblego.jp/market/734/" },
+    { label: "パチンコ市場規模（2024年、約16.2兆円）", url: "https://crexgroup.com/ja/data/market-data/pachinko-market-size-trends/" }
+  ]
+};
+
+// ---- 既定の仮置き係数（モデル説明欄に明記）----
+const LOCATION_COEF = { station:1.15, downtown:1.25, road:1.0, suburb:0.85 };
+const DOW_COEF = { 0:1.2, 1:1.0, 2:1.0, 3:1.0, 4:1.0, 5:1.05, 6:1.2 }; // 0=日
+const EVENT_COEF = { newmachine:0.15, payday:0.10, rain:-0.10, holiday:0.10 };
+const DEFAULT_PARTICIPATION_RATE = 0.06; // 統計未着時の仮置き（成人人口の一般的な遊技参加率の目安）
+const AVG_STORE_SEATS_IN_AREA = 250; // 統計未着時、商圏内1店舗あたり平均台数の仮置き
+
+// ---- ペルソナ生成用の仮名データ ----
+const KATAKANA_NAMES = ['タナカ','サトウ','スズキ','ヤマダ','イトウ','ワタナベ','ナカムラ','コバヤシ','カトウ','ヨシダ','サイトウ','ヤマモト','マツモト','イノウエ','キムラ'];
+// 統計データに無い項目（職業・来店動機・年代の構成比）は、ペルソナ生成の見た目を成立させるための
+// 「モデル内の仮置き分布」として明示する（統計値と偽らず、モデル説明欄にも仮置きである旨を記載）。
+const OCCUPATIONS_FALLBACK = ['会社員','自営業','パート・アルバイト','主婦・主夫','無職・年金生活者','公務員'];
+const MOTIVES_FALLBACK = ['ストレス発散','時間つぶし','娯楽・趣味','友人との交流','習慣・惰性'];
+const AGE_KEYS_FALLBACK = { '20代':0.15, '30代':0.20, '40代':0.22, '50代':0.20, '60代以上':0.23 };
+const GENRE = ['パチンコ','スロット'];
+
+let activeEvents = new Set();
+let lastResult = null;
+
+function $(id){ return document.getElementById(id); }
+
+function fmtInt(n){ return Math.round(n).toLocaleString('ja-JP'); }
+
+function weightedPick(distObj){
+  // distObj: {label: weight, ...} 合計1でなくても正規化する
+  const entries = Object.entries(distObj);
+  const total = entries.reduce((s,[,w])=>s+w,0);
+  let r = Math.random()*total;
+  for(const [label,w] of entries){
+    if(r < w) return label;
+    r -= w;
+  }
+  return entries[entries.length-1][0];
+}
+
+function renderSources(){
+  const el = $('sourceList');
+  if(!STATS.sources || STATS.sources.length===0){
+    el.innerHTML = '<span class="nodata">出典データなし（統計未反映）</span>';
+    return;
+  }
+  el.innerHTML = STATS.sources.map(s=>`・${s.label}: <a href="${s.url}" target="_blank" rel="noopener">${s.url}</a>`).join('<br>');
+}
+
+function setupChips(){
+  document.querySelectorAll('.chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const ev = chip.dataset.ev;
+      if(activeEvents.has(ev)){ activeEvents.delete(ev); chip.classList.remove('on'); }
+      else { activeEvents.add(ev); chip.classList.add('on'); }
+    });
+  });
+}
+
+$('inHour').addEventListener('input', ()=>{
+  $('hourLabel').textContent = $('inHour').value + '時';
+});
+
+// ---- 来客数モデル ----
+function computeVisitors(){
+  const pop = parseInt($('inPop').value, 10) || 0;
+  const seats = parseInt($('inSeats').value, 10) || 1;
+  const rivals = Math.max(0, parseInt($('inRivals').value, 10) || 0);
+  const loc = $('inLocation').value;
+  const dow = parseInt($('inDow').value, 10);
+
+  const participationRate = (STATS.participation_rate != null) ? STATS.participation_rate : DEFAULT_PARTICIPATION_RATE;
+
+  // 日次来店確率: 統計の来店頻度分布から「参加者が今日来店する確率」を逆算。
+  // 統計未着の場合は「週1〜2回来店」を仮定した目安値を使う。
+  let dailyVisitProb;
+  if(STATS.visit_frequency){
+    // 例: {"週3回以上":0.05, "週1-2回":0.25, "月2-3回":0.30, "月1回":0.20, "それ以下":0.20}
+    // 頻度カテゴリごとに月あたり来店回数へ変換し加重平均→日次確率化
+    const freqToMonthly = {
+      '週3回以上': 15, '週1-2回': 6, '月2-3回': 2.5, '月1回': 1, 'それ以下': 0.3
+    };
+    let monthlyAvg = 0, wsum=0;
+    for(const [k,w] of Object.entries(STATS.visit_frequency)){
+      const m = freqToMonthly[k] != null ? freqToMonthly[k] : 1;
+      monthlyAvg += m*w; wsum += w;
+    }
+    dailyVisitProb = wsum>0 ? (monthlyAvg/wsum)/30 : 0.03;
+  } else {
+    dailyVisitProb = 0.03; // 仮置き: 参加者が月1回程度来店する目安
+  }
+
+  const locCoef = LOCATION_COEF[loc] || 1.0;
+  const dowCoef = DOW_COEF[dow] || 1.0;
+
+  let eventCoef = 1;
+  let eventSum = 0;
+  activeEvents.forEach(ev=>{ eventSum += (EVENT_COEF[ev]||0); });
+  eventSum = Math.min(eventSum, 0.5); // 上限+50%でクリップ
+  eventCoef = 1 + eventSum;
+
+  const rivalDivisor = rivals + 1;
+
+  const areaTotalSeats = seats + rivals*AVG_STORE_SEATS_IN_AREA;
+  const shareCoef = (areaTotalSeats>0) ? (seats*rivalDivisor / areaTotalSeats) : 1; // 台数シェアに応じた補正（rivalDivisorで割った分を打ち消す形で単純化）
+
+  const base = pop * participationRate * dailyVisitProb;
+  const median = base * locCoef * dowCoef * eventCoef / rivalDivisor * shareCoef;
+
+  return { median: Math.max(0, median), participationRate, dailyVisitProb, locCoef, dowCoef, eventCoef, rivalDivisor, shareCoef };
+}
+
+// ---- 時間帯別 在店人数（10-23時の来店/滞在カーブ） ----
+function hourlyProfile(){
+  // 一般的な時間帯別の混雑カーブ（開店直後と夕方にピークが立つ二山型）を仮置き。
+  // 統計に時間帯別データが来たらこの重みを差し替える。
+  const weights = {10:0.9,11:1.0,12:0.85,13:0.7,14:0.75,15:0.95,16:1.1,17:1.15,18:1.05,19:0.9,20:0.75,21:0.55,22:0.35,23:0.15};
+  return weights;
+}
+
+function drawLineChart(canvas, hours, values, color){
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+  const pad = 24;
+  const max = Math.max(...values, 1);
+  ctx.strokeStyle = '#2a2a33';
+  ctx.lineWidth = 1;
+  for(let i=0;i<=4;i++){
+    const y = pad + (h-pad*1.5)*(i/4);
+    ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-6,y); ctx.stroke();
+  }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  hours.forEach((hh,i)=>{
+    const x = pad + (w-pad-10)*(i/(hours.length-1));
+    const y = h-pad*0.6 - (h-pad*1.5)*(values[i]/max);
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  ctx.fillStyle = '#9a9aa5';
+  ctx.font = '9px sans-serif';
+  hours.forEach((hh,i)=>{
+    if(i%3===0){
+      const x = pad + (w-pad-10)*(i/(hours.length-1));
+      ctx.fillText(hh+'時', x-6, h-6);
+    }
+  });
+}
+
+function drawBarChart(canvas, labels, values, color){
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+  const pad = 6;
+  const max = Math.max(...values, 0.0001);
+  const bw = (w - pad*2) / labels.length;
+  labels.forEach((lb,i)=>{
+    const bh = (h-30) * (values[i]/max);
+    const x = pad + i*bw;
+    const y = h-24-bh;
+    ctx.fillStyle = color;
+    ctx.fillRect(x+4, y, bw-8, bh);
+    ctx.fillStyle = '#c9c9d4';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(lb, x+bw/2, h-8);
+    ctx.fillStyle = '#ffd60a';
+    ctx.font = '9px sans-serif';
+    ctx.fillText(Math.round(values[i]*100)+'%', x+bw/2, y-4);
+  });
+  ctx.textAlign = 'left';
+}
+
+function runSimulation(){
+  const result = computeVisitors();
+  lastResult = result;
+  const median = result.median;
+  const low = median*0.85, high = median*1.15;
+
+  $('resultA').style.display='block';
+  $('resultB').style.display='block';
+  $('resultC').style.display='block';
+
+  $('statMedian').textContent = fmtInt(median) + '人';
+  $('statRange').textContent = fmtInt(low) + '〜' + fmtInt(high) + '人';
+
+  const profile = hourlyProfile();
+  const hours = Object.keys(profile).map(Number).sort((a,b)=>a-b);
+  const totalW = hours.reduce((s,hh)=>s+profile[hh],0);
+  const inStoreValues = hours.map(hh => median * (profile[hh]/totalW) * hours.length * 0.35); // 在店人数目安（滞在の重なりを簡易反映）
+  drawLineChart($('chartHourly'), hours, inStoreValues, '#ff2d55');
+
+  let peakHour = hours[0], peakVal = -1;
+  hours.forEach((hh,i)=>{ if(inStoreValues[i]>peakVal){ peakVal=inStoreValues[i]; peakHour=hh; } });
+  $('peakHour').textContent = peakHour + '時台';
+
+  renderAgeGenderMotive();
+  renderPersonas();
+  saveState();
+}
+
+function chartOrNoData(canvasId, dist, color){
+  const canvas = $(canvasId);
+  if(dist){
+    canvas.style.display = '';
+    const note = document.getElementById(canvasId+'Note');
+    if(note) note.remove();
+    drawBarChart(canvas, Object.keys(dist), Object.values(dist), color);
+  } else {
+    canvas.style.display = 'none';
+    if(!document.getElementById(canvasId+'Note')){
+      const p = document.createElement('div');
+      p.id = canvasId+'Note';
+      p.className = 'nodata';
+      p.textContent = 'データなし（統計の構成比が未取得のため表示できません）';
+      canvas.parentNode.insertBefore(p, canvas.nextSibling);
+    }
+  }
+}
+
+function renderAgeGenderMotive(){
+  // 年代別: 統計から構成比を取得できなかったため「データなし」表示（画面に数値を捏造しない）
+  chartOrNoData('chartAge', STATS.age_distribution, '#ff2d55');
+
+  // 男女比: 実統計あり（男性75.1% / 女性24.9%）
+  chartOrNoData('chartGender', STATS.gender_ratio, '#ffd60a');
+
+  // 来店動機: 統計なし「データなし」
+  chartOrNoData('chartMotive', STATS.visit_motive, '#3ddc84');
+}
+
+function genderNoteText(){
+  return STATS.gender_ratio ? '' : '';
+}
+
+function makePersona(i){
+  const ageDist = STATS.age_distribution || AGE_KEYS_FALLBACK;
+  const genderDist = STATS.gender_ratio || { '男性':0.75, '女性':0.25 };
+  const occDist = STATS.occupation_distribution || Object.fromEntries(OCCUPATIONS_FALLBACK.map(o=>[o, 1/OCCUPATIONS_FALLBACK.length]));
+  const freqDist = STATS.visit_frequency || { '週1-2回':0.25, '月2-3回':0.30, '月1回':0.20, 'それ以下':0.25 };
+  const motiveDist = STATS.visit_motive || Object.fromEntries(MOTIVES_FALLBACK.map(m=>[m, 1/MOTIVES_FALLBACK.length]));
+
+  const age = weightedPick(ageDist);
+  const gender = weightedPick(genderDist);
+  const occupation = weightedPick(occDist);
+  const frequency = weightedPick(freqDist);
+  const motive = weightedPick(motiveDist);
+  const genre = GENRE[Math.random()<0.6?0:1];
+  const stayMin = 60 + Math.floor(Math.random()*180); // 滞在時間の目安（統計未着のため仮置きレンジ）
+  const ageNum = (age.match(/\d+/)||['30'])[0];
+  const name = KATAKANA_NAMES[Math.floor(Math.random()*KATAKANA_NAMES.length)] + ' ' + (gender==='女性'||gender==='female' ? 'サン' : 'サン');
+
+  return { name, age, gender, occupation, frequency, motive, genre, stayMin };
+}
+
+function renderPersonas(){
+  const list = $('personaList');
+  list.innerHTML = '';
+  for(let i=0;i<6;i++){
+    const p = makePersona(i);
+    const div = document.createElement('div');
+    div.className = 'persona';
+    div.innerHTML = `
+      <div class="pname">${p.name}（${p.age}・${p.gender}）</div>
+      <div>職業: ${p.occupation}</div>
+      <div>来店頻度: ${p.frequency} ／ 平均滞在: 約${p.stayMin}分</div>
+      <div>来店動機: ${p.motive}</div>
+      <span class="ptag">${p.genre}好き</span>
+    `;
+    list.appendChild(div);
+  }
+}
+
+function saveState(){
+  const state = {
+    location: $('inLocation').value,
+    pop: $('inPop').value,
+    seats: $('inSeats').value,
+    rivals: $('inRivals').value,
+    dow: $('inDow').value,
+    hour: $('inHour').value,
+    events: Array.from(activeEvents)
+  };
+  try{
+    localStorage.setItem('raiten_sim_state', JSON.stringify(state));
+    location.hash = encodeURIComponent(JSON.stringify(state));
+  }catch(e){}
+}
+
+function loadState(){
+  let state = null;
+  if(location.hash && location.hash.length>1){
+    try{ state = JSON.parse(decodeURIComponent(location.hash.slice(1))); }catch(e){}
+  }
+  if(!state){
+    try{
+      const s = localStorage.getItem('raiten_sim_state');
+      if(s) state = JSON.parse(s);
+    }catch(e){}
+  }
+  if(!state) return;
+  if(state.location) $('inLocation').value = state.location;
+  if(state.pop) $('inPop').value = state.pop;
+  if(state.seats) $('inSeats').value = state.seats;
+  if(state.rivals) $('inRivals').value = state.rivals;
+  if(state.dow) $('inDow').value = state.dow;
+  if(state.hour){ $('inHour').value = state.hour; $('hourLabel').textContent = state.hour+'時'; }
+  if(state.events){
+    state.events.forEach(ev=>{
+      activeEvents.add(ev);
+      const chip = document.querySelector(`.chip[data-ev="${ev}"]`);
+      if(chip) chip.classList.add('on');
+    });
+  }
+}
+
+$('btnRun').addEventListener('click', runSimulation);
+$('btnShuffle').addEventListener('click', renderPersonas);
+
+setupChips();
+loadState();
+renderSources();
+
+})();
+</script>
+</body>
+</html>
