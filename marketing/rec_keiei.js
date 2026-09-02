@@ -19,17 +19,17 @@ const { chromium } = require('/Users/ryoseiworld/dev/tmp-orca-trial-203977525013
     await page.waitForTimeout(180);
   }
   await page.mouse.up();
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(2000);
 
   // Raise fixed rent value
   await page.fill('#fixRent', '2500000');
   await page.locator('#fixRent').dispatchEvent('input');
   await page.locator('#fixRent').dispatchEvent('change');
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2200);
 
   // Show sensitivity table
   await page.evaluate(() => document.getElementById('sensBody').scrollIntoView({behavior:'smooth', block:'center'}));
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2200);
 
   // Show scenario comparison
   await page.evaluate(() => document.getElementById('scenarioBox').scrollIntoView({behavior:'smooth', block:'center'}));
@@ -37,7 +37,7 @@ const { chromium } = require('/Users/ryoseiworld/dev/tmp-orca-trial-203977525013
 
   // Monte carlo results
   await page.evaluate(() => document.getElementById('mcMed').scrollIntoView({behavior:'smooth', block:'center'}));
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(4200);
 
   await context.close();
   await browser.close();
