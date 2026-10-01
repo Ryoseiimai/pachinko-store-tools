@@ -17,6 +17,7 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createRyomaruDisplay } from './ryomaru-view.js';
 
 const GRID = 0.5; // 1マス=0.5m
 const CUSTOMER_COLORS = [0xffb703, 0x8ecae6, 0xfb8500, 0x219ebc, 0xffafcc, 0xa8dadc];
@@ -130,6 +131,18 @@ export function createView3D(container, opts = {}) {
   const islandAABBs = []; // {minX,maxX,minZ,maxZ}
   let counterAABB = null;
   let floorW = 20, floorD = 20, floorCX = 0, floorCZ = 0;
+  const ryomaruDisplay = createRyomaruDisplay({ container, renderer, camera, world: worldGroup,
+    onOpen() {
+      state.tour.active = false;
+      fp.keys.clear(); fp.vel.set(0, 0, 0); fp.dragging = false; fp.forwardHeld = false;
+      fp.stick.active = false; fp.stick.dx = 0; fp.stick.dy = 0;
+      if (state.mode === 'fp') {
+        fp.pos.copy(camera.position);
+        const direction = camera.getWorldDirection(new THREE.Vector3());
+        fp.yaw = Math.atan2(direction.x, direction.z); fp.pitch = Math.asin(direction.y);
+      } else orbit.enabled = true;
+    },
+  });
 
   // --- HUD overlay canvas (rendered onto a plane so it's included in captureStream) ---
   const hudCanvas = document.createElement('canvas');
@@ -357,6 +370,7 @@ export function createView3D(container, opts = {}) {
   }
 
   function buildIslands() {
+    ryomaruDisplay.beginMachines();
     clearGroup(islandsGroup);
     slotMeshIndex.clear();
     islandAABBs.length = 0;
@@ -428,6 +442,8 @@ export function createView3D(container, opts = {}) {
         label.scale.set(1.1, 0.34, 1);
         group.add(label);
 
+        if (machine?.ryomaru) ryomaruDisplay.addMachine(group, machine.ryomaru);
+
         const chair = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.4), chairMat);
         chair.position.set(0, 0.25, 0.55);
         group.add(chair);
@@ -448,10 +464,16 @@ export function createView3D(container, opts = {}) {
   }
 
   function buildDecorExtras() {
+    ryomaruDisplay.beginSigns();
     clearGroup(decorGroup);
     const layout = state.layout;
     const decor = state.decor || {};
     if (!layout) return;
+
+    const corner = layout.islands.find(island => island.id === layout.ryomaruCorner?.islandId);
+    const installed = new Set((corner?.slots || []).map(slot => slot.machineId));
+    const latest = state.machines.find(machine => machine.ryomaru && installed.has(machine.id));
+    ryomaruDisplay.addSign(decorGroup, layout, latest?.ryomaru);
 
     if (decor.signboard && decor.signboard.text) {
       const sprite = makeTextSprite(decor.signboard.text, { fontSize: 56, bg: decor.signboard.color || 'rgba(20,20,40,0.85)' });
@@ -596,6 +618,14 @@ export function createView3D(container, opts = {}) {
     const start = safeTourPoint(ex + inward.x, ez + inward.z);
 
     const pts = [start];
+    const corner = islandAABBs.find(ab => ab.islandId === layout.ryomaruCorner?.islandId);
+    if (corner) {
+      const island = layout.islands.find(i => i.id === corner.islandId);
+      // 入口に近い面の通路に、新台を見るための地点を1つ追加する。
+      pts.push(island.dir === 'h'
+        ? safeTourPoint((corner.minX + corner.maxX) / 2, ez < (corner.minZ + corner.maxZ) / 2 ? corner.minZ - 1.2 : corner.maxZ + 1.2)
+        : safeTourPoint(ex < (corner.minX + corner.maxX) / 2 ? corner.minX - 1.2 : corner.maxX + 1.2, (corner.minZ + corner.maxZ) / 2));
+    }
     const sorted = islandAABBs.slice().sort((a, b) => (a.minX - b.minX) || (a.minZ - b.minZ));
     let dir = 1;
     sorted.forEach(ab => {
@@ -643,13 +673,14 @@ export function createView3D(container, opts = {}) {
     return true;
   }
 
-  function onKeyDown(e) { fp.keys.add(e.code); }
+  function onKeyDown(e) { if (!ryomaruDisplay.isOpen()) fp.keys.add(e.code); }
   function onKeyUp(e) { fp.keys.delete(e.code); }
   function isPointerLocked() { return document.pointerLockElement === renderer.domElement; }
   function onPointerDown(e) {
-    if (state.mode !== 'fp') return;
+    if (state.mode !== 'fp' || ryomaruDisplay.isOpen()) return;
     // PCはクリックでPointer Lockに入る(ドラッグ操作はロック不可環境へのフォールバック)
-    if (renderer.domElement.requestPointerLock && !isPointerLocked() && e.pointerType !== 'touch') {
+    if (renderer.domElement.requestPointerLock && !isPointerLocked() && e.pointerType !== 'touch'
+      && !ryomaruDisplay.isMachineAt(e.clientX, e.clientY)) {
       Promise.resolve(renderer.domElement.requestPointerLock()).catch(()=>{});
     }
     fp.dragging = true; fp.lastX = e.clientX; fp.lastY = e.clientY;
@@ -756,6 +787,7 @@ export function createView3D(container, opts = {}) {
   renderer.domElement.addEventListener('touchend', handleTouchEnd, { passive: true });
 
   function updateFP(dt) {
+    if (ryomaruDisplay.isOpen()) return;
     let mx = 0, mz = 0;
     if (fp.keys.has('KeyW') || fp.keys.has('ArrowUp')) mz -= 1;
     if (fp.keys.has('KeyS') || fp.keys.has('ArrowDown')) mz += 1;
@@ -1024,6 +1056,7 @@ export function createView3D(container, opts = {}) {
     toggleFullscreen,
     dispose() {
       state.disposed = true;
+      ryomaruDisplay.dispose();
       if (resizeObserver) resizeObserver.disconnect();
       window.removeEventListener('resize', doResize);
       window.removeEventListener('keydown', onKeyDown);

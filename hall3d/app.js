@@ -2,15 +2,23 @@
 import { createEditor, TEMPLATES } from './editor.js';
 import { simulate } from './engine.js';
 import { MACHINES } from './machines.js';
+import { loadRyomaruMachines, ryomaruCatalog, installRyomaruCorner } from './ryomaru.js';
 
 const $ = (id) => document.getElementById(id);
+// 3Dにも同じ配列を渡し、一覧の取得後に追加する（setLayoutで機種マップを更新）。
+const machines = [...MACHINES];
+let ryomaruMachines = null;
 
 const canvas = $('editorCanvas');
 const editor = createEditor(canvas, {
+  getMachines: () => machines,
   // レイアウト構造(島の追加/削除/移動/回転・機種割当)が変わった時だけ3Dを再構築する。
   // 「1日を走らせる」の度に毎回setLayoutすると320台分のキャビネット・スプライト・
   // CanvasTextureを全部作り直すことになり非常に重いため、ここでのみ呼ぶ。
-  onChange: (layout) => { lastResult = null; saveToLocalStorage(); if (view3d) view3d.setLayout(layout); },
+  onChange: (layout) => {
+    if (installRyomaruCorner(layout, ryomaruMachines, { reason: 'edit' })) editor.render();
+    lastResult = null; saveToLocalStorage(); if (view3d) view3d.setLayout(layout);
+  },
   onHover: (info, clientX, clientY) => showTooltip(info, clientX, clientY),
 });
 
@@ -57,11 +65,16 @@ function applyDecorFromForm(){
 function showTooltip(info, clientX, clientY){
   const tip = $('tooltip');
   if (!info) { tip.style.display = 'none'; return; }
-  const m = MACHINES.find(mm => mm.id === info.machineId);
+  const m = machines.find(mm => mm.id === info.machineId);
   tip.style.display = 'block';
   tip.style.left = (clientX + 12) + 'px';
   tip.style.top = (clientY + 12) + 'px';
-  tip.innerHTML = `<b>${m ? m.name : '(空き)'}</b><br>稼働率 ${(info.heat * 100).toFixed(0)}%<br>OUT ${fmt(info.out)}<br>売上 ¥${fmt(info.sales)}<br>来店 ${info.visits}人`;
+  tip.replaceChildren();
+  const name = document.createElement('b'); name.textContent = m ? m.name : '(空き)';
+  tip.append(name);
+  for (const text of [`稼働率 ${(info.heat * 100).toFixed(0)}%`, `OUT ${fmt(info.out)}`, `売上 ¥${fmt(info.sales)}`, `来店 ${info.visits}人`]) {
+    tip.append(document.createElement('br'), document.createTextNode(text));
+  }
 }
 
 function readDayParams(){
@@ -92,10 +105,13 @@ function renderSummary(res){
 }
 
 async function runSimulation(){
+  // 保存済みのryomaru機種が未登録のまま空席扱いになるのを防ぐ。編集中の配置は取得後に読む。
+  if (ryomaruMachines === null) $('perfNote').textContent = '新台一覧を確認中…';
+  await ryomaruReady;
   const layout = editor.getLayout();
   const dayParams = readDayParams();
   const t0 = performance.now();
-  const res = simulate({ layout, machines: MACHINES, dayParams });
+  const res = simulate({ layout, machines, dayParams });
   const t1 = performance.now();
   lastResult = res;
   renderSummary(res);
@@ -112,7 +128,7 @@ async function runSimulation(){
 function runCompare(){
   if (!lastResult) return;
   const layoutB = JSON.parse(JSON.stringify(editor.getLayout()));
-  compareResult = simulate({ layout: layoutB, machines: MACHINES, dayParams: readDayParams() });
+  compareResult = simulate({ layout: layoutB, machines, dayParams: readDayParams() });
   const a = lastResult.summary, b = compareResult.summary;
   const rows = [
     ['来店客数', a.visitors, b.visitors],
@@ -154,6 +170,7 @@ function importJSON(file){
   reader.onload = () => {
     try {
       const layout = JSON.parse(reader.result);
+      installRyomaruCorner(layout, ryomaruMachines, { reason: 'import' });
       editor.loadLayout(layout);
       lastResult = null;
       refreshDecorForm();
@@ -169,8 +186,9 @@ async function initView3D(){
   const el = $('view3dContainer');
   try {
     const mod = await import('./view3d.js');
-    view3d = mod.createView3D(el, { layout: editor.getLayout(), machines: MACHINES });
+    view3d = mod.createView3D(el, { layout: editor.getLayout(), machines });
     view3d.setDecor(editor.getLayout().decor);
+    if (lastResult) view3d.setResult(lastResult, { openHour: readDayParams().openHour });
     $('view3dStatus').style.display = 'none';
     window.addEventListener('resize', () => view3d && view3d.resize());
   } catch (e) {
@@ -192,10 +210,14 @@ $('fileImport').addEventListener('change', (e) => { if (e.target.files[0]) impor
 
 document.querySelectorAll('.templateBtn').forEach(btn => {
   btn.addEventListener('click', () => {
-    editor.loadTemplate(btn.dataset.template);
+    const layout = TEMPLATES[btn.dataset.template]?.build();
+    if (!layout) return;
+    installRyomaruCorner(layout, ryomaruMachines, { reason: 'template' });
+    editor.loadLayout(layout);
     lastResult = null;
     refreshDecorForm();
     if (view3d) { view3d.setLayout(editor.getLayout()); view3d.setDecor(editor.getLayout().decor); }
+    saveToLocalStorage();
   });
 });
 
@@ -230,8 +252,20 @@ $('btnRecord').addEventListener('click', async () => {
 
 // ---- 初期化 ----
 if (!loadFromLocalStorage()) {
-  editor.loadTemplate('mid320');
+  editor.loadLayout(TEMPLATES.mid320.build());
 }
 editor.render();
 refreshDecorForm();
+saveToLocalStorage();
+// 取得と並行してホールを描画・操作できるようにする。取得中の編集・削除も現在の配置で判定する。
+const ryomaruReady = loadRyomaruMachines().then(({ machines: entries }) => {
+  ryomaruMachines = entries;
+  machines.push(...ryomaruCatalog(entries, MACHINES));
+  if (installRyomaruCorner(editor.getLayout(), entries, { reason: 'load' })) {
+    lastResult = null;
+    editor.setHeatmap(null);
+    saveToLocalStorage();
+  }
+  if (view3d) view3d.setLayout(editor.getLayout());
+});
 initView3D();

@@ -69,6 +69,7 @@ export function createEditor(canvas, opts = {}){
   let drag = null; // {type:'island'|'entrance'|'counter', startX, startZ, origX, origZ}
   const onChange = opts.onChange || (() => {});
   const onHover = opts.onHover || (() => {});
+  const getMachines = opts.getMachines || (() => MACHINES);
 
   const picker = document.createElement('select');
   picker.style.position = 'absolute';
@@ -138,7 +139,7 @@ export function createEditor(canvas, opts = {}){
         const p = slotPosition(island, slot);
         const key = island.id + '#' + slot.i + '#' + slot.side;
         const hm = heatmap && heatmap.get(key);
-        const m = MACHINES.find(mm => mm.id === slot.machineId);
+        const m = getMachines().find(mm => mm.id === slot.machineId);
         let color = '#3a3a46';
         if (hm) color = heatColor(hm.heat);
         else if (m) color = m.kind === 'P' ? '#3d5ddc' : '#dc7a3d';
@@ -169,9 +170,12 @@ export function createEditor(canvas, opts = {}){
   }
 
   function openPicker(clientX, clientY, applyFn){
-    picker.innerHTML = '<option value="">(空き)</option>' +
-      '<optgroup label="P機">' + MACHINES.filter(m => m.kind === 'P').map(m => `<option value="${m.id}">${m.name}</option>`).join('') + '</optgroup>' +
-      '<optgroup label="S機">' + MACHINES.filter(m => m.kind === 'S').map(m => `<option value="${m.id}">${m.name}</option>`).join('') + '</optgroup>';
+    picker.replaceChildren(new Option('(空き)', ''));
+    for (const kind of ['P', 'S']) {
+      const group = document.createElement('optgroup'); group.label = kind + '機';
+      getMachines().filter(m => m.kind === kind).forEach(m => group.append(new Option(m.name, m.id)));
+      picker.append(group);
+    }
     const rect = canvas.getBoundingClientRect();
     picker.style.left = (clientX - rect.left) + 'px';
     picker.style.top = (clientY - rect.top) + 'px';
