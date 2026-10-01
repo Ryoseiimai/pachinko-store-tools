@@ -6,6 +6,14 @@ import { MACHINES } from './machines.js';
 const GRID = 0.5; // 1マス=0.5m
 const SCALE = 12; // 1マスあたりの描画px
 
+// CSS上の表示座標 → canvas内部の描画座標 → グリッド座標（DOMに依存しない）。
+export function clientToGrid(clientX, clientY, rect, canvasWidth, canvasHeight){
+  return {
+    x: (clientX - rect.left) * canvasWidth / rect.width / SCALE,
+    z: (clientY - rect.top) * canvasHeight / rect.height / SCALE,
+  };
+}
+
 // ---- テンプレ3種 ----
 // 島=横向き10連(5台×両面)を基本単位とし、行×列で敷き詰める。
 // 新台(popularity高)は先頭側(=入口寄り)の島から順に割り当てる。
@@ -66,7 +74,8 @@ export function createEditor(canvas, opts = {}){
   let layout = opts.layout || emptyLayout();
   let heatmap = null; // Map<key, {heat,out,sales,visits}>
   let selectedIslandId = null;
-  let drag = null; // {type:'island'|'entrance'|'counter', startX, startZ, origX, origZ}
+  let drag = null; // {target, pointerId, startX, startZ, origX, origZ}
+  let closePicker = () => {};
   const onChange = opts.onChange || (() => {});
   const onHover = opts.onHover || (() => {});
   const getMachines = opts.getMachines || (() => MACHINES);
@@ -80,7 +89,9 @@ export function createEditor(canvas, opts = {}){
   (canvas.parentElement || document.body).appendChild(picker);
 
   function toPx(v){ return v * SCALE; }
-  function toGrid(px){ return px / SCALE; }
+  function eventToGrid(ev){
+    return clientToGrid(ev.clientX, ev.clientY, canvas.getBoundingClientRect(), canvas.width, canvas.height);
+  }
 
   function slotPosition(island, slot){
     const count = island.slots.length;
@@ -150,8 +161,7 @@ export function createEditor(canvas, opts = {}){
     }
   }
 
-  function findSlotAt(px, pz){
-    const gx = toGrid(px), gz = toGrid(pz);
+  function findSlotAt(gx, gz){
     for (const island of layout.islands) {
       for (const slot of island.slots) {
         const p = slotPosition(island, slot);
@@ -161,8 +171,7 @@ export function createEditor(canvas, opts = {}){
     return null;
   }
 
-  function findIslandAt(px, pz){
-    const gx = toGrid(px), gz = toGrid(pz);
+  function findIslandAt(gx, gz){
     for (const island of layout.islands) {
       if (gx >= island.x - island.w / 2 && gx <= island.x + island.w / 2 && gz >= island.z - island.d / 2 && gz <= island.z + island.d / 2) return island;
     }
@@ -170,6 +179,8 @@ export function createEditor(canvas, opts = {}){
   }
 
   function openPicker(clientX, clientY, applyFn){
+    // 別の台を続けて選んだとき、前の台への変更ハンドラを残さない。
+    closePicker();
     picker.replaceChildren(new Option('(空き)', ''));
     for (const kind of ['P', 'S']) {
       const group = document.createElement('optgroup'); group.label = kind + '機';
@@ -180,24 +191,37 @@ export function createEditor(canvas, opts = {}){
     picker.style.left = (clientX - rect.left) + 'px';
     picker.style.top = (clientY - rect.top) + 'px';
     picker.style.display = 'block';
-    picker.focus();
     const onChangeOnce = () => {
       applyFn(picker.value || null);
-      picker.style.display = 'none';
-      picker.removeEventListener('change', onChangeOnce);
-      picker.removeEventListener('blur', onBlur);
+      closePicker();
       render();
       onChange(layout);
     };
-    const onBlur = () => { picker.style.display = 'none'; picker.removeEventListener('change', onChangeOnce); picker.removeEventListener('blur', onBlur); };
+    const onBlur = () => closePicker();
+    closePicker = () => {
+      picker.removeEventListener('change', onChangeOnce);
+      picker.removeEventListener('blur', onBlur);
+      closePicker = () => {};
+      picker.style.display = 'none';
+    };
     picker.addEventListener('change', onChangeOnce);
     picker.addEventListener('blur', onBlur);
+    picker.focus();
   }
 
-  canvas.addEventListener('mousedown', (ev) => {
-    const rect = canvas.getBoundingClientRect();
-    const px = ev.clientX - rect.left, pz = ev.clientY - rect.top;
-    const slotHit = findSlotAt(px, pz);
+  function startDrag(ev, target, gx, gz){
+    drag = { target, pointerId: ev.pointerId, startX: gx, startZ: gz, origX: target.x, origZ: target.z };
+    canvas.setPointerCapture(ev.pointerId);
+  }
+
+  // マウス・タッチを同じ座標換算と操作で扱う。
+  canvas.addEventListener('pointerdown', (ev) => {
+    if (!ev.isPrimary || ev.button !== 0) return;
+    // 続くmousedownの既定フォーカス移動によってpickerが即blurするのを防ぐ。
+    ev.preventDefault();
+    closePicker();
+    const { x: gx, z: gz } = eventToGrid(ev);
+    const slotHit = findSlotAt(gx, gz);
     if (slotHit && ev.shiftKey) {
       // shift+クリック: 島ごと一括で機種を割り当て
       openPicker(ev.clientX, ev.clientY, (machineId) => {
@@ -209,38 +233,38 @@ export function createEditor(canvas, opts = {}){
       openPicker(ev.clientX, ev.clientY, (machineId) => { slotHit.slot.machineId = machineId; });
       return;
     }
-    const island = findIslandAt(px, pz);
+    const island = findIslandAt(gx, gz);
     if (island) {
       selectedIslandId = island.id;
-      drag = { type: 'island', island, startX: toGrid(px), startZ: toGrid(pz), origX: island.x, origZ: island.z };
+      startDrag(ev, island, gx, gz);
       render();
       return;
     }
     for (const en of (layout.entrance || [])) {
-      if (Math.hypot(toGrid(px) - en.x, toGrid(pz) - en.z) < 1.5) { drag = { type: 'entrance', target: en, startX: toGrid(px), startZ: toGrid(pz), origX: en.x, origZ: en.z }; return; }
+      if (Math.hypot(gx - en.x, gz - en.z) < 1.5) { startDrag(ev, en, gx, gz); return; }
     }
     if (layout.counter) {
       const c = layout.counter;
-      if (Math.abs(toGrid(px) - c.x) < c.w / 2 && Math.abs(toGrid(pz) - c.z) < c.d / 2) { drag = { type: 'counter', target: c, startX: toGrid(px), startZ: toGrid(pz), origX: c.x, origZ: c.z }; return; }
+      if (Math.abs(gx - c.x) < c.w / 2 && Math.abs(gz - c.z) < c.d / 2) { startDrag(ev, c, gx, gz); return; }
     }
     selectedIslandId = null;
     render();
   });
 
-  window.addEventListener('mousemove', (ev) => {
-    const rect = canvas.getBoundingClientRect();
-    const px = ev.clientX - rect.left, pz = ev.clientY - rect.top;
+  window.addEventListener('pointermove', (ev) => {
+    if (!ev.isPrimary) return;
+    const { x: gx, z: gz } = eventToGrid(ev);
     if (drag) {
-      const dx = toGrid(px) - drag.startX, dz = toGrid(pz) - drag.startZ;
+      if (ev.pointerId !== drag.pointerId) return;
+      const dx = gx - drag.startX, dz = gz - drag.startZ;
       const nx = Math.round((drag.origX + dx) / GRID) * GRID;
       const nz = Math.round((drag.origZ + dz) / GRID) * GRID;
-      if (drag.type === 'island') { drag.island.x = Math.max(0, nx); drag.island.z = Math.max(0, nz); }
-      else { drag.target.x = Math.max(0, nx); drag.target.z = Math.max(0, nz); }
+      drag.target.x = Math.max(0, nx); drag.target.z = Math.max(0, nz);
       render();
       return;
     }
     if (heatmap) {
-      const hit = findSlotAt(px, pz);
+      const hit = findSlotAt(gx, gz);
       if (hit) {
         const key = hit.island.id + '#' + hit.slot.i + '#' + hit.slot.side;
         const hm = heatmap.get(key);
@@ -251,9 +275,15 @@ export function createEditor(canvas, opts = {}){
     onHover(null, ev.clientX, ev.clientY);
   });
 
-  window.addEventListener('mouseup', () => {
-    if (drag) { drag = null; onChange(layout); }
-  });
+  function endDrag(ev){
+    if (!drag || ev.pointerId !== drag.pointerId) return;
+    drag = null;
+    if (canvas.hasPointerCapture(ev.pointerId)) canvas.releasePointerCapture(ev.pointerId);
+    onChange(layout);
+  }
+  window.addEventListener('pointerup', endDrag);
+  window.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('lostpointercapture', endDrag);
 
   return {
     render,
